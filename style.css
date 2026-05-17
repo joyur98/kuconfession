@@ -196,13 +196,15 @@ body {
   position: relative; z-index: 1;
   max-width: 1100px; margin: 0 auto;
   padding: 0 24px 80px;
-  columns: 3 320px; column-gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-items: start;
 }
-@media (max-width: 700px) { .feed { columns: 1; } }
+@media (max-width: 700px) { .feed { grid-template-columns: 1fr; } }
 
 /* ---- CARD ---- */
 .confession-card {
-  break-inside: avoid;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
