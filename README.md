@@ -1,73 +1,31 @@
-# KU Confessions 🎓
+# KU Confession Board 🎓
 
-An anonymous confession board for Kathmandu University students.
+A safe, anonymous space for Kathmandu University students to share thoughts, secrets, stories, and confessions — no judgment, no names.
+
+## What is this?
+
+KU Confession Board is an anonymous posting platform built for the KU community. Whether it's a campus crush, an exam stress rant, a funny incident, or something you've never told anyone — this is your place to let it out.
 
 ## Features
-- 📬 Anonymous confessions (no login required)
-- 🏷️ Categories: Love, Academics, Campus, Other
-- ❤️ Like confessions (tracked per device)
-- 🔄 Real-time updates via Firebase Firestore
-- 📊 Sort by newest or most liked
-- 🎨 Aesthetic dark UI with grain & glow effects
 
-## Setup
+- **100% Anonymous** — No login required. No identity stored.
+- **Post Freely** — Share confessions, stories, or anything on your mind.
+- **Community Reactions** — React to posts and know you're not alone.
+- **Moderated Space** — Posts are reviewed to keep the board respectful and safe.
 
-### 1. Firebase Firestore Rules
-In your Firebase console → Firestore → Rules, set:
+## How to Use
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /confessions/{id} {
-      allow read: if true;
-      allow create: if request.resource.data.text is string
-                    && request.resource.data.text.size() > 0
-                    && request.resource.data.text.size() <= 500;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
-                    && request.resource.data.likes == resource.data.likes + 1;
-    }
-  }
-}
-```
+1. Visit the board.
+2. Click **"Post a Confession"**.
+3. Type your confession and submit — that's it.
 
-### 2. Create Firestore Index
-In Firebase console → Firestore → Indexes, create a composite index:
-- Collection: `confessions`
-- Fields: `createdAt` (Descending)
-- Query scope: Collection
+## Guidelines
 
-### 3. Run the site
-Because this uses ES Modules (`import`), you need to serve it over HTTP (not file://). 
+- Be honest, but be kind.
+- No hate speech, harassment, or personal attacks.
+- Do not expose other people's identities.
+- Keep it relevant to the KU community.
 
-**Option A – VS Code Live Server**: Right-click `index.html` → Open with Live Server
+---
 
-**Option B – Python**:
-```bash
-python -m http.server 8080
-```
-Then open http://localhost:8080
-
-**Option C – Deploy to Firebase Hosting**:
-```bash
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-firebase deploy
-```
-
-## File Structure
-```
-ku-confessions/
-├── index.html    # Main HTML
-├── style.css     # All styles
-├── app.js        # Firebase logic + UI
-└── README.md     # This file
-```
-
-## Tech Stack
-- Firebase Firestore (real-time database)
-- Firebase Analytics
-- Firebase SDK v9.23.0 (via CDN)
-- Vanilla JS (ES Modules)
-- Google Fonts: DM Serif Display + DM Sans
+*Made with 💙 for KU students. Your secret is safe here.*
