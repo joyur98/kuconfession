@@ -123,7 +123,7 @@ function renderFeed() {
   if (activeSort === "top") {
     filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
   } else if (activeSort === "discussed") {
-    filtered.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+    filtered.sort((a, b) => (Number(b.commentCount) || 0) - (Number(a.commentCount) || 0));
   } else {
     filtered.sort((a, b) => {
       const aTime = a.createdAt ? a.createdAt.toMillis() : 0;
@@ -156,7 +156,9 @@ function buildCard(conf, i) {
 
   const meta = catMeta[conf.category] || catMeta.other;
   const isLiked = likedSet.has(conf.id);
-  const commentCount = conf.commentCount || 0;
+  const commentCount = (conf.commentCount != null && !isNaN(conf.commentCount))
+    ? Number(conf.commentCount)
+    : 0;
 
   // Build reply label
   const replyLabel = commentCount === 0
