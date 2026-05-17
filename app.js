@@ -226,7 +226,7 @@ function listenToConfessions() {
   const q = query(collection(db, "confessions"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snapshot) => {
     allConfessions = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderFeed();
+    docChanges();
   });
 }
 
