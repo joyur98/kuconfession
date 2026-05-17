@@ -1,5 +1,5 @@
 // ==========================================
-//  KU CONFESSIONS — app.js
+//  CONFESSIONS — app.js
 //  Firebase SDK (compat v9 via CDN module)
 // ==========================================
 
@@ -38,7 +38,12 @@ const db = getFirestore(app);
 let allConfessions = [];
 let activeCategory = "all";
 let activeSort = "newest";
-let likedSet = new Set(JSON.parse(localStorage.getItem("ku_liked") || "[]"));
+let likedSet = new Set(JSON.parse(localStorage.getItem("confess_liked") || "[]"));
+
+// currently open confession for comments
+let activeConfessionId = null;
+let activeConfessionText = null;
+let commentUnsubscribe = null;
 
 // ---- DOM Refs ----
 const feed = document.getElementById("feed");
@@ -53,17 +58,27 @@ const confessionText = document.getElementById("confessionText");
 const charCount = document.getElementById("charCount");
 const statCount = document.getElementById("statCount");
 const statLikes = document.getElementById("statLikes");
+const statComments = document.getElementById("statComments");
 const toastEl = document.getElementById("toast");
 const navTabs = document.querySelectorAll(".nav-tab");
 const sortBtns = document.querySelectorAll(".sort-btn");
 const categoryPills = document.querySelectorAll(".pill");
 
+// Comment modal DOM
+const commentModalOverlay = document.getElementById("commentModalOverlay");
+const closeCommentModalBtn = document.getElementById("closeCommentModalBtn");
+const commentConfessionPreview = document.getElementById("commentConfessionPreview");
+const commentsList = document.getElementById("commentsList");
+const commentText = document.getElementById("commentText");
+const commentCharCount = document.getElementById("commentCharCount");
+const commentSubmitBtn = document.getElementById("commentSubmitBtn");
+
 // ---- Category meta ----
 const catMeta = {
-  love:      { label: "💛 Love",      color: "#f5c842" },
-  academics: { label: "📚 Academics", color: "#7c6af5" },
-  campus:    { label: "🏛️ Campus",    color: "#5bbfea" },
-  other:     { label: "🌀 Other",     color: "#e86a3a" },
+  love:  { label: "💛 Love",  color: "#f5c842" },
+  life:  { label: "🌿 Life",  color: "#6abf7b" },
+  rant:  { label: "🔥 Rant",  color: "#e86a3a" },
+  other: { label: "🌀 Other", color: "#7c6af5" },
 };
 
 // ---- Helpers ----
@@ -85,12 +100,20 @@ function showToast(msg, duration = 2500) {
 }
 
 function saveLiked() {
-  localStorage.setItem("ku_liked", JSON.stringify([...likedSet]));
+  localStorage.setItem("confess_liked", JSON.stringify([...likedSet]));
 }
 
-// ---- Render ----
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ---- Render Feed ----
 function renderFeed() {
-  // Remove existing cards (keep skeleton)
   document.querySelectorAll(".confession-card").forEach((el) => el.remove());
 
   let filtered =
@@ -100,6 +123,8 @@ function renderFeed() {
 
   if (activeSort === "top") {
     filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+  } else if (activeSort === "discussed") {
+    filtered.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
   } else {
     filtered.sort((a, b) => {
       const aTime = a.createdAt ? a.createdAt.toMillis() : 0;
@@ -123,8 +148,10 @@ function renderFeed() {
 
   // Update stats
   const totalLikes = allConfessions.reduce((s, c) => s + (c.likes || 0), 0);
+  const totalComments = allConfessions.reduce((s, c) => s + (c.commentCount || 0), 0);
   statCount.textContent = allConfessions.length;
   statLikes.textContent = totalLikes;
+  statComments.textContent = totalComments;
 }
 
 function buildCard(conf, i) {
@@ -134,30 +161,28 @@ function buildCard(conf, i) {
 
   const meta = catMeta[conf.category] || catMeta.other;
   const isLiked = likedSet.has(conf.id);
+  const commentCount = conf.commentCount || 0;
 
   card.innerHTML = `
     <div class="card-category" style="color:${meta.color};background:${meta.color}18">${meta.label}</div>
     <p class="card-text">${escapeHtml(conf.text)}</p>
     <div class="card-footer">
       <span class="card-time">${timeAgo(conf.createdAt)}</span>
-      <button class="like-btn ${isLiked ? "liked" : ""}" data-id="${conf.id}">
-        <span class="heart">${isLiked ? "❤️" : "🤍"}</span>
-        <span class="like-count">${conf.likes || 0}</span>
-      </button>
+      <div class="card-actions">
+        <button class="like-btn ${isLiked ? "liked" : ""}" data-id="${conf.id}">
+          <span class="heart">${isLiked ? "❤️" : "🤍"}</span>
+          <span class="like-count">${conf.likes || 0}</span>
+        </button>
+        <button class="comment-btn ${commentCount > 0 ? "has-comments" : ""}" data-id="${conf.id}" data-text="${escapeHtml(conf.text)}">
+          💬 ${commentCount > 0 ? commentCount : "Reply"}
+        </button>
+      </div>
     </div>
   `;
 
   card.querySelector(".like-btn").addEventListener("click", handleLike);
+  card.querySelector(".comment-btn").addEventListener("click", openCommentModal);
   return card;
-}
-
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 // ---- Like ----
@@ -166,7 +191,7 @@ async function handleLike(e) {
   const id = btn.dataset.id;
 
   if (likedSet.has(id)) {
-    showToast("You've already liked this confession 💛");
+    showToast("You've already liked this one 💛");
     return;
   }
 
@@ -178,7 +203,6 @@ async function handleLike(e) {
   const countEl = btn.querySelector(".like-count");
   countEl.textContent = parseInt(countEl.textContent || "0") + 1;
 
-  // Update in Firestore
   try {
     await updateDoc(doc(db, "confessions", id), { likes: increment(1) });
   } catch (err) {
@@ -186,7 +210,93 @@ async function handleLike(e) {
   }
 }
 
-// ---- Submit ----
+// ---- Comments ----
+function openCommentModal(e) {
+  const btn = e.currentTarget;
+  activeConfessionId = btn.dataset.id;
+  activeConfessionText = btn.dataset.text;
+
+  // Show confession preview
+  commentConfessionPreview.textContent = `"${activeConfessionText}"`;
+
+  // Reset
+  commentsList.innerHTML = `<div class="comments-loading">Loading replies…</div>`;
+  commentText.value = "";
+  commentCharCount.textContent = "0";
+
+  commentModalOverlay.classList.remove("hidden");
+
+  // Unsubscribe previous listener
+  if (commentUnsubscribe) commentUnsubscribe();
+
+  // Listen to comments in real time
+  const commentsRef = collection(db, "confessions", activeConfessionId, "comments");
+  const q = query(commentsRef, orderBy("createdAt", "asc"));
+
+  commentUnsubscribe = onSnapshot(q, (snapshot) => {
+    commentsList.innerHTML = "";
+    if (snapshot.empty) {
+      commentsList.innerHTML = `<div class="no-comments">No replies yet.<br/>Be the first to say something.</div>`;
+      return;
+    }
+    snapshot.docs.forEach((d) => {
+      const data = d.data();
+      const item = document.createElement("div");
+      item.className = "comment-item";
+      item.innerHTML = `
+        <p class="comment-item-text">${escapeHtml(data.text || "")}</p>
+        <p class="comment-item-time">${timeAgo(data.createdAt)}</p>
+      `;
+      commentsList.appendChild(item);
+    });
+    // scroll to bottom
+    commentsList.scrollTop = commentsList.scrollHeight;
+  });
+}
+
+function closeCommentModal() {
+  commentModalOverlay.classList.add("hidden");
+  if (commentUnsubscribe) {
+    commentUnsubscribe();
+    commentUnsubscribe = null;
+  }
+  activeConfessionId = null;
+}
+
+async function handleCommentSubmit() {
+  const text = commentText.value.trim();
+  if (!text) {
+    showToast("Write something first ✍️");
+    return;
+  }
+  if (!activeConfessionId) return;
+
+  commentSubmitBtn.disabled = true;
+
+  try {
+    const commentsRef = collection(db, "confessions", activeConfessionId, "comments");
+    await addDoc(commentsRef, {
+      text,
+      createdAt: serverTimestamp(),
+    });
+
+    // increment commentCount on the confession doc
+    await updateDoc(doc(db, "confessions", activeConfessionId), {
+      commentCount: increment(1),
+    });
+
+    commentText.value = "";
+    commentCharCount.textContent = "0";
+    showToast("Reply posted anonymously 💬");
+  } catch (err) {
+    console.error("Comment failed:", err);
+    showToast("Something went wrong. Try again.");
+  } finally {
+    commentSubmitBtn.disabled = false;
+  }
+}
+
+// ---- Submit Confession ----
 async function handleSubmit() {
   const text = confessionText.value.trim();
   if (!text) {
@@ -205,13 +315,14 @@ async function handleSubmit() {
       text,
       category,
       likes: 0,
+      commentCount: 0,
       createdAt: serverTimestamp(),
     });
 
     confessionText.value = "";
     charCount.textContent = "0";
     modalOverlay.classList.add("hidden");
-    showToast("Confession posted 🎉 The world is listening.");
+    showToast("Posted anonymously 🎉 The world is listening.");
   } catch (err) {
     console.error("Post failed:", err);
     showToast("Something went wrong. Please try again.");
@@ -226,11 +337,13 @@ function listenToConfessions() {
   const q = query(collection(db, "confessions"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snapshot) => {
     allConfessions = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    docChanges();
+    renderFeed();
   });
 }
 
-// ---- Category filter ----
+// ---- Event Listeners ----
+
+// Nav tabs
 navTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     navTabs.forEach((t) => t.classList.remove("active"));
@@ -240,7 +353,7 @@ navTabs.forEach((tab) => {
   });
 });
 
-// ---- Sort ----
+// Sort
 sortBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
     sortBtns.forEach((b) => b.classList.remove("active"));
@@ -250,7 +363,7 @@ sortBtns.forEach((btn) => {
   });
 });
 
-// ---- Category pills in modal ----
+// Category pills in confession modal
 categoryPills.forEach((pill) => {
   pill.addEventListener("click", () => {
     categoryPills.forEach((p) => p.classList.remove("active"));
@@ -258,27 +371,43 @@ categoryPills.forEach((pill) => {
   });
 });
 
-// ---- Char counter ----
+// Char counters
 confessionText.addEventListener("input", () => {
   charCount.textContent = confessionText.value.length;
 });
+commentText.addEventListener("input", () => {
+  commentCharCount.textContent = commentText.value.length;
+});
 
-// ---- Modal open/close ----
+// Confession modal
 openModalBtn.addEventListener("click", () => {
   modalOverlay.classList.remove("hidden");
   confessionText.focus();
 });
-closeModalBtn.addEventListener("click", () => {
-  modalOverlay.classList.add("hidden");
-});
+closeModalBtn.addEventListener("click", () => modalOverlay.classList.add("hidden"));
 modalOverlay.addEventListener("click", (e) => {
   if (e.target === modalOverlay) modalOverlay.classList.add("hidden");
 });
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") modalOverlay.classList.add("hidden");
+
+// Comment modal
+closeCommentModalBtn.addEventListener("click", closeCommentModal);
+commentModalOverlay.addEventListener("click", (e) => {
+  if (e.target === commentModalOverlay) closeCommentModal();
+});
+commentSubmitBtn.addEventListener("click", handleCommentSubmit);
+commentText.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.metaKey) handleCommentSubmit();
 });
 
-// ---- Submit ----
+// Escape key closes whichever modal is open
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    modalOverlay.classList.add("hidden");
+    closeCommentModal();
+  }
+});
+
+// Submit confession
 submitBtn.addEventListener("click", handleSubmit);
 confessionText.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.metaKey) handleSubmit();
