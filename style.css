@@ -422,7 +422,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: -16px;
+  margin-right: 130px;
   pointer-events: none;
 }
 .logo-hint-arrow {
