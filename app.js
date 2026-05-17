@@ -57,8 +57,6 @@ const submitLabel = document.getElementById("submitLabel");
 const confessionText = document.getElementById("confessionText");
 const charCount = document.getElementById("charCount");
 const statCount = document.getElementById("statCount");
-const statLikes = document.getElementById("statLikes");
-const statComments = document.getElementById("statComments");
 const toastEl = document.getElementById("toast");
 const navTabs = document.querySelectorAll(".nav-tab");
 const sortBtns = document.querySelectorAll(".sort-btn");
@@ -72,6 +70,7 @@ const commentsList = document.getElementById("commentsList");
 const commentText = document.getElementById("commentText");
 const commentCharCount = document.getElementById("commentCharCount");
 const commentSubmitBtn = document.getElementById("commentSubmitBtn");
+const commentModalReplyCount = document.getElementById("commentModalReplyCount");
 
 // ---- Category meta ----
 const catMeta = {
@@ -147,11 +146,7 @@ function renderFeed() {
   });
 
   // Update stats
-  const totalLikes = allConfessions.reduce((s, c) => s + (c.likes || 0), 0);
-  const totalComments = allConfessions.reduce((s, c) => s + (c.commentCount || 0), 0);
   statCount.textContent = allConfessions.length;
-  statLikes.textContent = totalLikes;
-  statComments.textContent = totalComments;
 }
 
 function buildCard(conf, i) {
@@ -162,6 +157,13 @@ function buildCard(conf, i) {
   const meta = catMeta[conf.category] || catMeta.other;
   const isLiked = likedSet.has(conf.id);
   const commentCount = conf.commentCount || 0;
+
+  // Build reply label
+  const replyLabel = commentCount === 0
+    ? "Reply"
+    : commentCount === 1
+      ? "1 reply"
+      : `${commentCount} replies`;
 
   card.innerHTML = `
     <div class="card-category" style="color:${meta.color};background:${meta.color}18">${meta.label}</div>
@@ -174,7 +176,8 @@ function buildCard(conf, i) {
           <span class="like-count">${conf.likes || 0}</span>
         </button>
         <button class="comment-btn ${commentCount > 0 ? "has-comments" : ""}" data-id="${conf.id}" data-text="${escapeHtml(conf.text)}">
-          💬 ${commentCount > 0 ? commentCount : "Reply"}
+          <span class="comment-icon">💬</span>
+          <span class="comment-label">${replyLabel}</span>
         </button>
       </div>
     </div>
@@ -223,8 +226,10 @@ function openCommentModal(e) {
   commentsList.innerHTML = `<div class="comments-loading">Loading replies…</div>`;
   commentText.value = "";
   commentCharCount.textContent = "0";
+  if (commentModalReplyCount) commentModalReplyCount.textContent = "…";
 
   commentModalOverlay.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 
   // Unsubscribe previous listener
   if (commentUnsubscribe) commentUnsubscribe();
@@ -234,9 +239,25 @@ function openCommentModal(e) {
   const q = query(commentsRef, orderBy("createdAt", "asc"));
 
   commentUnsubscribe = onSnapshot(q, (snapshot) => {
+    const count = snapshot.size;
+
+    // Update reply count badge in modal header
+    if (commentModalReplyCount) {
+      commentModalReplyCount.textContent = count === 0
+        ? "No replies yet"
+        : count === 1
+          ? "1 reply"
+          : `${count} replies`;
+    }
+
     commentsList.innerHTML = "";
     if (snapshot.empty) {
-      commentsList.innerHTML = `<div class="no-comments">No replies yet.<br/>Be the first to say something.</div>`;
+      commentsList.innerHTML = `
+        <div class="no-comments">
+          <div class="no-comments-icon">💬</div>
+          <p>No replies yet.</p>
+          <p class="no-comments-sub">Be the first to say something.</p>
+        </div>`;
       return;
     }
     snapshot.docs.forEach((d) => {
@@ -256,6 +277,7 @@ function openCommentModal(e) {
 
 function closeCommentModal() {
   commentModalOverlay.classList.add("hidden");
+  document.body.style.overflow = "";
   if (commentUnsubscribe) {
     commentUnsubscribe();
     commentUnsubscribe = null;
