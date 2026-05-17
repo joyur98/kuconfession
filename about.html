@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — KU Confessions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0f0d0a;
+      --surface:   #1a1714;
+      --surface2:  #231f1b;
+      --border:    rgba(255,220,130,0.12);
+      --gold:      #f5c842;
+      --gold-dim:  rgba(245,200,66,0.15);
+      --cream:     #f5efe6;
+      --text:      #ede8df;
+      --muted:     rgba(237,232,223,0.45);
+      --accent:    #e86a3a;
+      --radius:    18px;
+      --radius-lg: 28px;
+      --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- BACKGROUND ---- */
+    .bg-layer {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.18;
+    }
+    .blob-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #f5c842 0%, transparent 70%);
+      top: -200px; left: -150px;
+      animation: drift1 18s ease-in-out infinite alternate;
+    }
+    .blob-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #e86a3a 0%, transparent 70%);
+      bottom: -100px; right: -100px;
+      animation: drift2 22s ease-in-out infinite alternate;
+    }
+    .blob-3 {
+      width: 350px; height: 350px;
+      background: radial-gradient(circle, #7c6af5 0%, transparent 70%);
+      top: 50%; left: 55%;
+      animation: drift3 16s ease-in-out infinite alternate;
+    }
+    .grain {
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.035;
+    }
+    @keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(60px,80px) scale(1.1); } }
+    @keyframes drift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-50px,-60px) scale(1.08); } }
+    @keyframes drift3 { from { transform: translate(0,0); } to { transform: translate(-40px,50px); } }
+
+    /* ---- HEADER ---- */
+    .site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15,13,10,0.82);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem;
+      color: var(--gold);
+      white-space: nowrap;
+      text-decoration: none;
+      cursor: pointer;
+      margin-right: auto;
+      transition: opacity var(--transition);
+    }
+    .logo:hover { opacity: 0.8; }
+    .logo-mark { font-size: 1rem; opacity: 0.8; }
+
+    .back-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem; font-weight: 500;
+      padding: 7px 18px;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .back-btn:hover {
+      color: var(--text);
+      border-color: rgba(245,200,66,0.3);
+      background: var(--surface2);
+    }
+
+    /* ---- PAGE WRAPPER ---- */
+    .page {
+      position: relative; z-index: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 80px 24px 120px;
+    }
+
+    /* ---- EYEBROW ---- */
+    .eyebrow {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      opacity: 0.7;
+      margin-bottom: 32px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    /* ---- QUESTIONS ---- */
+    .question-block {
+      margin-bottom: 48px;
+    }
+
+    .question {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      line-height: 1.2;
+      color: var(--cream);
+      margin-bottom: 0;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.7s ease forwards;
+    }
+
+    .question em {
+      color: var(--gold);
+      font-style: italic;
+    }
+
+    .question.q1 { animation-delay: 0.1s; }
+    .question.q2 { animation-delay: 0.3s; }
+    .question.q3 { animation-delay: 0.5s; }
+    .question.q4 { animation-delay: 0.7s; }
+    .question.q5 { animation-delay: 0.9s; }
+
+    /* ---- DIVIDER ---- */
+    .divider {
+      display: flex; align-items: center; gap: 16px;
+      margin: 56px 0;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.9s forwards;
+    }
+    .divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .divider-mark {
+      font-size: 0.9rem;
+      color: var(--gold);
+      opacity: 0.6;
+    }
+
+    /* ---- ANSWER BLOCK ---- */
+    .answer-block {
+      opacity: 0;
+      animation: fadeUp 0.7s ease 1.1s forwards;
+    }
+
+    .answer-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .answer-text {
+      font-size: 1.05rem;
+      line-height: 1.9;
+      color: var(--text);
+      font-weight: 300;
+    }
+
+    .answer-text p { margin-bottom: 20px; }
+    .answer-text p:last-child { margin-bottom: 0; }
+
+    .answer-text strong {
+      color: var(--cream);
+      font-weight: 500;
+    }
+
+    /* ---- RULES BLOCK ---- */
+    .rules-block {
+      margin-top: 56px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 1.3s forwards;
+    }
+
+    .rules-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.2rem;
+      color: var(--cream);
+      margin-bottom: 20px;
+    }
+
+    .rules-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .rules-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--muted);
+      font-weight: 300;
+    }
+
+    .rule-icon {
+      font-size: 0.85rem;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ---- CTA ---- */
+    .cta-block {
+      margin-top: 56px;
+      text-align: center;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 1.5s forwards;
+    }
+
+    .cta-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.4rem, 3vw, 1.9rem);
+      color: var(--cream);
+      margin-bottom: 28px;
+      line-height: 1.3;
+    }
+    .cta-text em { color: var(--gold); font-style: italic; }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--gold);
+      color: #0f0d0a;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 99px;
+      padding: 14px 32px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all var(--transition);
+      box-shadow: 0 0 32px rgba(245,200,66,0.3);
+    }
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px rgba(245,200,66,0.45);
+    }
+
+    /* ---- ANIMATION ---- */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- SCROLLBAR ---- */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <div class="bg-layer" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="grain"></div>
+  </div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href="index.html">
+        <span class="logo-mark">✦</span>
+        <span class="logo-text">KU Confessions</span>
+      </a>
+      <a class="back-btn" href="index.html">
+        ← Back to feed
+      </a>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <p class="eyebrow">What is this place</p>
+
+    <div class="question-block">
+      <h1 class="question q1">Have you ever wanted to say something — but stopped yourself because you <em>knew</em> people would judge you?</h1>
+    </div>
+
+    <div class="question-block">
+      <p class="question q2">Have you ever carried something around for weeks — a crush, a regret, a secret — and had nobody to tell it to?</p>
+    </div>
+
+    <div class="question-block">
+      <p class="question q3">Have you ever sat in a lecture hall full of people and felt completely, utterly <em>alone</em> with your thoughts?</p>
+    </div>
+
+    <div class="question-block">
+      <p class="question q4">Have you ever needed to just <em>say it</em> — out loud, to someone, to anyone — without having to explain yourself?</p>
+    </div>
+
+    <div class = "question-block">
+      <p class = "question q5"> Have you ever wanted to <em>hurl</em> <em>hurt</em> <em>insult</em> anyone - without wanting to show your face?</p>
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <span class="divider-mark">✦</span>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="answer-block">
+      <span class="answer-label">This is why we exist</span>
+      <div class="answer-text">
+        <p>KU Confessions is a space built entirely for you — the student who has something to say but nowhere to say it. No account. No name. No face. <strong>Just your words, released into the void.</strong></p>
+        <p>Maybe it's something small — a quiet crush on someone in your morning class. Maybe it's something heavier — a feeling you've been sitting with for a long time that you've never told a single soul. Maybe you just need to say something stupid and laugh about it.</p>
+        <p><strong>Whatever it is, this is your room.</strong> Nobody here knows who you are. Nobody is going to question you, follow up, or look at you differently in the corridor tomorrow. You speak. People listen. That's it.</p>
+        <p>We built this because university can be an incredibly isolating place, even when you're surrounded by thousands of people. Sometimes the most honest version of yourself only comes out when nobody's watching.</p>
+      </div>
+    </div>
+
+    <div class="rules-block">
+      <h2 class="rules-title">One thing to keep in mind</h2>
+      <ul class="rules-list">
+        <li>
+          <span class="rule-icon">✦</span>
+          <span>Anonymity is a gift — use it to be <strong style="color:var(--text)">honest</strong>, not to be cruel. There are real people on the other side of this screen.</span>
+        </li>
+        <li>
+          <span class="rule-icon">✦</span>
+          <span>No personal information about other students. Keep names, faces, and identifiers out of it.</span>
+        </li>
+        <li>
+          <span class="rule-icon">✦</span>
+          <span>This is a community space. Speak freely — but remember that freedom feels best when it doesn't cost someone else their dignity.</span>
+        </li>
+        <li>
+          <span class="rule-icon">✦</span>
+          <span>No data is collected. No account is needed. What you post is yours, and yours alone.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="cta-block">
+      <p class="cta-text">Something on your mind, <em>KU?</em></p>
+      <a class="cta-btn" href="index.html">
+        Go confess something
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+
+  </main>
+
+</body>
+</html>
