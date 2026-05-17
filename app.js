@@ -156,11 +156,9 @@ function buildCard(conf, i) {
 
   const meta = catMeta[conf.category] || catMeta.other;
   const isLiked = likedSet.has(conf.id);
-  const commentCount = (conf.commentCount != null && !isNaN(conf.commentCount))
-    ? Number(conf.commentCount)
-    : 0;
+  const commentCount = parseInt(conf.commentCount, 10) || 0;
 
-  // Build reply label
+  // Build reply label: uses actual subcollection size if available via data attribute
   const replyLabel = commentCount === 0
     ? "Reply"
     : commentCount === 1
@@ -243,6 +241,9 @@ function openCommentModal(e) {
   commentUnsubscribe = onSnapshot(q, (snapshot) => {
     const count = snapshot.size;
 
+    // Build label helper
+    const countLabel = (n) => n === 0 ? "Reply" : n === 1 ? "1 reply" : `${n} replies`;
+
     // Update reply count badge in modal header
     if (commentModalReplyCount) {
       commentModalReplyCount.textContent = count === 0
@@ -250,6 +251,14 @@ function openCommentModal(e) {
         : count === 1
           ? "1 reply"
           : `${count} replies`;
+    }
+
+    // Also update the card's comment button label live from actual subcollection size
+    const cardBtn = document.querySelector(`.comment-btn[data-id="${activeConfessionId}"]`);
+    if (cardBtn) {
+      const labelEl = cardBtn.querySelector(".comment-label");
+      if (labelEl) labelEl.textContent = countLabel(count);
+      cardBtn.classList.toggle("has-comments", count > 0);
     }
 
     commentsList.innerHTML = "";
