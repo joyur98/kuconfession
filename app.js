@@ -10,6 +10,7 @@ import {
   addDoc,
   getDocs,
   doc,
+  deleteDoc,
   updateDoc,
   increment,
   query,
@@ -33,6 +34,42 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
+
+// ---- Moderation ----
+const bannedWords = ['lado', 'puti', 'muji', 'randi'];
+
+function containsBannedWord(text) {
+  const lower = text.toLowerCase();
+  return bannedWords.some(word => lower.includes(word));
+}
+
+// ---- One-time cleanup: delete confessions mentioning Anjila ----
+async function deleteAnjilaMentions() {
+  try {
+    const snapshot = await getDocs(collection(db, "confessions"));
+    const deletePromises = [];
+
+    snapshot.forEach((d) => {
+      const data = d.data();
+      if (data.text && data.text.toLowerCase().includes('anjila')) {
+        deletePromises.push(deleteDoc(doc(db, "confessions", d.id)));
+        console.log("Deleting confession mentioning Anjila:", d.id);
+      }
+    });
+
+    await Promise.all(deletePromises);
+    if (deletePromises.length > 0) {
+      console.log(`Cleanup done! Deleted ${deletePromises.length} confession(s) mentioning Anjila.`);
+    } else {
+      console.log("No confessions mentioning Anjila found.");
+    }
+  } catch (err) {
+    console.error("Cleanup failed:", err);
+  }
+}
+
+// Run cleanup once on load — remove this line after it has run successfully
+deleteAnjilaMentions();
 
 // ---- State ----
 let allConfessions = [];
@@ -158,7 +195,6 @@ function buildCard(conf, i) {
   const isLiked = likedSet.has(conf.id);
   const commentCount = parseInt(conf.commentCount, 10) || 0;
 
-  // Build reply label: uses actual subcollection size if available via data attribute
   const replyLabel = commentCount === 0
     ? "Reply"
     : commentCount === 1
@@ -219,10 +255,8 @@ function openCommentModal(e) {
   activeConfessionId = btn.dataset.id;
   activeConfessionText = btn.dataset.text;
 
-  // Show confession preview
   commentConfessionPreview.textContent = `"${activeConfessionText}"`;
 
-  // Reset
   commentsList.innerHTML = `<div class="comments-loading">Loading replies…</div>`;
   commentText.value = "";
   commentCharCount.textContent = "0";
@@ -231,20 +265,15 @@ function openCommentModal(e) {
   commentModalOverlay.classList.remove("hidden");
   document.body.style.overflow = "hidden";
 
-  // Unsubscribe previous listener
   if (commentUnsubscribe) commentUnsubscribe();
 
-  // Listen to comments in real time
   const commentsRef = collection(db, "confessions", activeConfessionId, "comments");
   const q = query(commentsRef, orderBy("createdAt", "asc"));
 
   commentUnsubscribe = onSnapshot(q, (snapshot) => {
     const count = snapshot.size;
-
-    // Build label helper
     const countLabel = (n) => n === 0 ? "Reply" : n === 1 ? "1 reply" : `${n} replies`;
 
-    // Update reply count badge in modal header
     if (commentModalReplyCount) {
       commentModalReplyCount.textContent = count === 0
         ? "No replies yet"
@@ -253,7 +282,6 @@ function openCommentModal(e) {
           : `${count} replies`;
     }
 
-    // Also update the card's comment button label live from actual subcollection size
     const cardBtn = document.querySelector(`.comment-btn[data-id="${activeConfessionId}"]`);
     if (cardBtn) {
       const labelEl = cardBtn.querySelector(".comment-label");
@@ -281,7 +309,6 @@ function openCommentModal(e) {
       `;
       commentsList.appendChild(item);
     });
-    // scroll to bottom
     commentsList.scrollTop = commentsList.scrollHeight;
   });
 }
@@ -304,6 +331,12 @@ async function handleCommentSubmit() {
   }
   if (!activeConfessionId) return;
 
+  // Moderation check
+  if (containsBannedWord(text)) {
+    showToast("⚠️ Your reply contains inappropriate language.");
+    return;
+  }
+
   commentSubmitBtn.disabled = true;
 
   try {
@@ -313,7 +346,6 @@ async function handleCommentSubmit() {
       createdAt: serverTimestamp(),
     });
 
-    // increment commentCount on the confession doc
     await updateDoc(doc(db, "confessions", activeConfessionId), {
       commentCount: increment(1),
     });
@@ -334,6 +366,12 @@ async function handleSubmit() {
   const text = confessionText.value.trim();
   if (!text) {
     showToast("Please write something first ✍️");
+    return;
+  }
+
+  // Moderation check
+  if (containsBannedWord(text)) {
+    showToast("⚠️ Your confession contains inappropriate language.");
     return;
   }
 
