@@ -595,10 +595,21 @@ async function handleSubmit() {
 // ==========================================
 function listenToConfessions() {
   const q = query(collection(db, "confessions"), orderBy("createdAt", "desc"));
-  onSnapshot(q, (snapshot) => {
-    allConfessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderFeed();
-  });
+  onSnapshot(q,
+    (snapshot) => {
+      allConfessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderFeed();
+    },
+    (err) => {
+      // If the ordered query fails (e.g. missing Firestore index),
+      // fall back to an unordered fetch so confessions still appear.
+      console.warn("Ordered snapshot failed, falling back:", err.message);
+      getDocs(collection(db, "confessions")).then(snapshot => {
+        allConfessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderFeed();
+      }).catch(e => console.error("Fallback fetch failed:", e));
+    }
+  );
 }
 
 // ==========================================
@@ -656,9 +667,10 @@ submitBtn.addEventListener("click", handleSubmit);
 confessionText.addEventListener("keydown", e => { if (e.key === "Enter" && e.metaKey) handleSubmit(); });
 
 // ==========================================
-//  BOOT — cleanup first, then listen
+//  BOOT
+//  Start the listener immediately so the feed
+//  always loads. Cleanup runs in the background
+//  so any Firestore error there never blocks it.
 // ==========================================
-(async () => {
-  await cleanupBannedContent();
-  listenToConfessions();
-})();
+listenToConfessions();
+cleanupBannedContent().catch(err => console.error("Background cleanup error:", err));
