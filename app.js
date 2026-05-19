@@ -98,7 +98,7 @@ const bannedWords = [
   'slut', 'sluts', 'slutty',
   'piss', 'pissed', 'pissoff',
   'crap', 'crappy',
-  'motherfucker',
+  'motherfucker', 
 
   // --- Racial & identity slurs ---
   'nigger', 'nigga', 'niggas',
@@ -130,7 +130,10 @@ function containsBannedWord(text) {
   const lower = text.toLowerCase().replace(/(.)\1+/gi, '$1');
   return bannedWords.some(w => {
     const nw = normalizeText(w);
-    return normalized.includes(nw) || lower.includes(w);
+    // Word boundary check — must be whole word, not substring
+    const wordBoundary = new RegExp(`(?<![a-z])${nw}(?![a-z])`);
+    const wordBoundaryRaw = new RegExp(`(?<![a-z])${w.replace(/(.)\1+/gi,'$1')}(?![a-z])`);
+    return wordBoundary.test(normalized) || wordBoundaryRaw.test(lower);
   });
 }
 
