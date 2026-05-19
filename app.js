@@ -74,6 +74,7 @@ function isOwned(docId, firestoreToken) {
 // ==========================================
 
 const bannedWords = [
+  // --- Nepali / campus slurs ---
   'lado', 'puti', 'muji', 'randi', 'machikne', 'myachikne',
   'bhalu', 'valu', 'kutta', 'kutti', 'haramkhor', 'haramkor',
   'chikna', 'chikne', 'harami', 'dalla', 'dalal', 'beshya',
@@ -81,6 +82,37 @@ const bannedWords = [
   'chhakka', 'chakka', 'jhatu', 'bakchod', 'bakchodi',
   'chutiya', 'chhutiya', 'lode', 'lodi', 'tharki',
   'phataha', 'fataaha', 'kukur',
+
+  // --- English profanity ---
+  'fuck', 'fucker', 'fucking', 'fucked', 'fuckup', 'fuckoff',
+  'shit', 'shitty', 'bullshit',
+  'bitch', 'bitches', 'bitching',
+  'asshole', 'arsehole', 'ass', 'asses',
+  'bastard', 'bastards',
+  'damn', 'damnit',
+  'cunt', 'cunts',
+  'dick', 'dicks', 'dickhead',
+  'cock', 'cocks', 'cocksucker',
+  'pussy', 'pussies',
+  'whore', 'whores', 'whorish',
+  'slut', 'sluts', 'slutty',
+  'piss', 'pissed', 'pissoff',
+  'crap', 'crappy',
+  'motherfucker',
+
+  // --- Racial & identity slurs ---
+  'nigger', 'nigga', 'niggas',
+  'chink', 'chinks',
+  'spic', 'spics',
+  'kike', 'kikes',
+  'gook', 'gooks',
+  'wetback',
+  'cracker',
+  'faggot', 'fag', 'fags',
+  'dyke',
+  'tranny', 'trannies',
+  'retard', 'retarded', 'retards',
+  'spastic', 'spaz',
 ];
 
 function normalizeText(text) {
