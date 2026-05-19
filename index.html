@@ -807,10 +807,10 @@
 
     // ---- MODERATION NOTICE ----
 const modNotice = document.getElementById("modNotice");
-if (localStorage.getItem("modNoticeDismissed")) modNotice.style.display = "none";
+if (localStorage.getItem("modNoticeDismissed_v2")) modNotice.style.display = "none";
 document.getElementById("modNoticeClose").addEventListener("click", () => {
   modNotice.style.display = "none";
-  localStorage.setItem("modNoticeDismissed", "1");
+  localStorage.setItem("modNoticeDismissed_v2", "1");
 });
 
     if (sessionStorage.getItem("kuconfess_accepted")) {
