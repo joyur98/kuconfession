@@ -339,6 +339,60 @@
     }
 
     /* =====================
+   MODERATION NOTICE
+===================== */
+.mod-notice {
+  position: relative; z-index: 1;
+  max-width: 1100px;
+  margin: 14px auto 0;
+  padding: 0 24px;
+}
+.mod-notice-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(232,106,58,0.1) 0%, rgba(245,200,66,0.06) 100%);
+  border: 1.5px solid rgba(232,106,58,0.35);
+  border-radius: 14px;
+  padding: 15px 18px;
+}
+.mod-notice-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.mod-notice-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: rgba(237,232,223,0.7);
+  line-height: 1.7;
+  font-weight: 300;
+  flex: 1;
+}
+.mod-notice-text strong {
+  color: #f5c842;
+  font-weight: 600;
+}
+.mod-notice-close {
+  background: none;
+  border: none;
+  color: rgba(237,232,223,0.28);
+  font-size: 0.95rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 1px 3px;
+  transition: color 0.2s;
+  align-self: flex-start;
+  line-height: 1;
+}
+.mod-notice-close:hover { color: rgba(237,232,223,0.65); }
+@media (max-width: 640px) {
+  .mod-notice { padding: 0 14px; margin-top: 10px; }
+  .mod-notice-inner { padding: 12px 14px; border-radius: 12px; }
+  .mod-notice-text { font-size: 0.77rem; }
+}
+
+    /* =====================
        WELCOME / DISCLAIMER GATE
     ===================== */
     #welcomeGate {
@@ -568,6 +622,16 @@
     💡 If confessions aren't loading, press any sorting filter and they'll appear!
   </div>
 
+  <div class="mod-notice" id="modNotice">
+  <div class="mod-notice-inner">
+    <span class="mod-notice-icon">📢</span>
+    <p class="mod-notice-text">
+      <strong>A note from the admin:</strong> All confessions with profanity or slurs have been manually removed. Old replies/comments may still contain some bad language — sorry about that, we couldn't bulk-delete those. From now on, <strong>profanity is blocked in both confessions and replies.</strong> Keep it real, keep it kind. ✦
+    </p>
+    <button class="mod-notice-close" id="modNoticeClose" aria-label="Dismiss">✕</button>
+  </div>
+</div>
+
   <!-- COMMUNITY GUIDELINES BANNER -->
   <div class="guidelines-banner" id="guidelinesBanner">
     <span class="guidelines-icon">🙏</span>
@@ -740,6 +804,14 @@
     // everything (z-index 99999) so nothing behind it is reachable.
     const welcomeGate    = document.getElementById("welcomeGate");
     const welcomeAccept  = document.getElementById("welcomeAcceptBtn");
+
+    // ---- MODERATION NOTICE ----
+const modNotice = document.getElementById("modNotice");
+if (localStorage.getItem("modNoticeDismissed")) modNotice.style.display = "none";
+document.getElementById("modNoticeClose").addEventListener("click", () => {
+  modNotice.style.display = "none";
+  localStorage.setItem("modNoticeDismissed", "1");
+});
 
     if (sessionStorage.getItem("kuconfess_accepted")) {
       welcomeGate.classList.add("hidden");
