@@ -36,11 +36,61 @@ const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
 // ---- Moderation ----
-const bannedWords = ['lado', 'puti', 'muji', 'randi'];
+const bannedWords = [
+  // Direct Nepali slurs
+  'lado', 'lādo',
+  'puti', 'puti',
+  'muji', 'mujī',
+  'randi', 'randī',
+  'machikne', 'māchikne',
+  'myachikne', 'myāchikne',
+  'bhalu', 'valu', 'bhālu',
+  'kutta', 'kutti',
+  'haramkhor', 'haramkor',
+  'chikna', 'chikne',
+  'harami',
+  'dalla', 'dalal',
+  'beshya',
+  'suwwar', 'suwar',
+  'gandu', 'gaandu',
+  'laure',
+  'chhakka',
+  'jhatu',
+  'bakchod', 'bakchodi',
+  'chutiya', 'chhutiya',
+  'lode', 'lodi',
+];
+
+// Also catch common letter substitutions (e.g. 'pu71', 'muj1')
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .replace(/0/g, 'o')
+    .replace(/1/g, 'i')
+    .replace(/3/g, 'e')
+    .replace(/4/g, 'a')
+    .replace(/5/g, 's')
+    .replace(/7/g, 't')
+    .replace(/[@]/g, 'a')
+    .replace(/\$/g, 's')
+    .replace(/\s+/g, ''); // also catch spaced out words like "m u j i"
+}
 
 function containsBannedWord(text) {
+  const normalized = normalizeText(text);
   const lower = text.toLowerCase();
-  return bannedWords.some(word => lower.includes(word));
+  return bannedWords.some(word => normalized.includes(word) || lower.includes(word));
+}
+
+function getWarningMessage() {
+  const warnings = [
+    "🚫 Whoa there! Keep it respectful — no slurs or offensive language allowed.",
+    "⚠️ Your message contains language that isn't allowed here. Try again with kinder words.",
+    "🙏 This is a safe space. Please remove offensive words before posting.",
+    "❌ Some words in your message aren't allowed. KU Confessions is for real feelings, not hate.",
+    "💛 We all go here — keep it human. Please remove the offensive language.",
+  ];
+  return warnings[Math.floor(Math.random() * warnings.length)];
 }
 
 // ---- One-time cleanup: delete confessions mentioning Anjila ----
@@ -133,6 +183,17 @@ function showToast(msg, duration = 2500) {
   toastEl.classList.remove("hidden");
   clearTimeout(toastEl._timer);
   toastEl._timer = setTimeout(() => toastEl.classList.add("hidden"), duration);
+}
+
+function showWarning() {
+  const overlay = document.getElementById("warningOverlay");
+  const msg = document.getElementById("warningMessage");
+  if (msg) msg.textContent = getWarningMessage();
+  if (overlay) {
+    overlay.classList.remove("hidden");
+    clearTimeout(overlay._timer);
+    overlay._timer = setTimeout(() => overlay.classList.add("hidden"), 4000);
+  }
 }
 
 function saveLiked() {
@@ -333,7 +394,7 @@ async function handleCommentSubmit() {
 
   // Moderation check
   if (containsBannedWord(text)) {
-    showToast("⚠️ Your reply contains inappropriate language.");
+    showWarning();
     return;
   }
 
@@ -371,7 +432,7 @@ async function handleSubmit() {
 
   // Moderation check
   if (containsBannedWord(text)) {
-    showToast("⚠️ Your confession contains inappropriate language.");
+    showWarning();
     return;
   }
 
