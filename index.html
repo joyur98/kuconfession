@@ -2,15 +2,213 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Confessions — Anonymous Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>KU Confessions — Anonymous Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 
   <style>
-    /* ---- Warning Overlay ---- */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* =====================
+       HEADER MOBILE
+    ===================== */
+    @media (max-width: 640px) {
+      .header-inner {
+        padding: 0 16px !important;
+        flex-wrap: wrap;
+        height: auto !important;
+        gap: 0;
+        padding-top: 10px !important;
+        padding-bottom: 0 !important;
+      }
+      .logo { font-size: 1rem !important; }
+      .logo-hint { display: none !important; }
+      .confess-btn {
+        font-size: 0.78rem !important;
+        padding: 7px 13px !important;
+      }
+      .header-nav {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 8px 0 10px;
+        gap: 6px !important;
+        display: flex;
+        border-top: 1px solid rgba(255,220,130,0.08);
+        margin-top: 10px;
+      }
+      .header-nav::-webkit-scrollbar { display: none; }
+      .nav-tab {
+        white-space: nowrap;
+        font-size: 0.76rem !important;
+        padding: 6px 12px !important;
+        flex-shrink: 0;
+      }
+    }
+
+    /* =====================
+       HERO MOBILE
+    ===================== */
+    @media (max-width: 640px) {
+      .hero { padding: 36px 16px 20px !important; }
+      .hero-title { font-size: clamp(1.9rem, 9vw, 2.8rem) !important; }
+      .hero-sub { font-size: 0.88rem !important; }
+      .hero-eyebrow { font-size: 0.7rem !important; }
+    }
+
+    /* =====================
+       SORT BAR MOBILE
+    ===================== */
+    @media (max-width: 640px) {
+      .sort-bar {
+        padding: 0 16px 0 !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex-wrap: nowrap !important;
+      }
+      .sort-bar::-webkit-scrollbar { display: none; }
+      .sort-label { flex-shrink: 0; font-size: 0.75rem !important; }
+      .sort-btn {
+        font-size: 0.76rem !important;
+        padding: 6px 12px !important;
+        flex-shrink: 0;
+      }
+    }
+
+    /* =====================
+       FEED MOBILE
+    ===================== */
+    @media (max-width: 640px) {
+      .feed { padding: 14px 14px !important; gap: 12px !important; }
+      .confession-card { padding: 18px 16px !important; border-radius: 16px !important; }
+      .card-text { font-size: 0.9rem !important; line-height: 1.65 !important; }
+      .card-time { font-size: 0.7rem !important; }
+      .like-btn, .comment-btn {
+        font-size: 0.76rem !important;
+        padding: 5px 10px !important;
+        gap: 4px !important;
+      }
+      .card-category { font-size: 0.72rem !important; padding: 4px 10px !important; }
+    }
+
+    /* =====================
+       MODAL MOBILE — slides up from bottom
+    ===================== */
+    @media (max-width: 640px) {
+      .modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+      }
+      .modal {
+        border-radius: 24px 24px 0 0 !important;
+        padding: 24px 18px 36px !important;
+        max-height: 93vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .comment-modal { max-height: 90vh !important; }
+      .modal-title { font-size: 1.2rem !important; }
+      .modal-sub { font-size: 0.8rem !important; }
+      /* Prevents iOS zoom on textarea focus */
+      .confession-input { font-size: 16px !important; }
+      .submit-btn { font-size: 0.88rem !important; padding: 13px 18px !important; }
+      .category-pills { gap: 6px !important; flex-wrap: wrap !important; }
+      .pill { font-size: 0.76rem !important; padding: 6px 12px !important; }
+      .comments-list { max-height: 36vh !important; }
+      .comment-modal-header { margin-bottom: 10px !important; }
+    }
+
+    /* =====================
+       LOADING NOTICE MOBILE
+    ===================== */
+    @media (max-width: 640px) {
+      .loading-notice {
+        font-size: 0.76rem !important;
+        margin: 8px 14px !important;
+        padding: 10px 13px !important;
+      }
+    }
+
+    /* =====================
+       GUIDELINES BANNER
+    ===================== */
+    .guidelines-banner {
+      background: linear-gradient(135deg, rgba(245,200,66,0.07) 0%, rgba(232,106,58,0.05) 100%);
+      border: 1px solid rgba(245,200,66,0.16);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      max-width: 760px;
+      margin: 12px auto;
+      position: relative;
+      z-index: 1;
+      /* horizontal margin handled below */
+      margin-left: 24px;
+      margin-right: 24px;
+    }
+    @media (max-width: 640px) {
+      .guidelines-banner { margin: 10px 14px; padding: 12px 14px; border-radius: 12px; }
+    }
+    .guidelines-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .guidelines-text {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      color: rgba(237,232,223,0.58);
+      line-height: 1.65;
+      font-weight: 300;
+    }
+    .guidelines-text strong { color: rgba(245,200,66,0.8); font-weight: 500; }
+    @media (max-width: 640px) {
+      .guidelines-text { font-size: 0.76rem; }
+    }
+    .guidelines-close {
+      background: none; border: none;
+      color: rgba(237,232,223,0.28);
+      font-size: 0.95rem; cursor: pointer;
+      flex-shrink: 0; margin-left: auto;
+      padding: 1px 3px;
+      transition: color 0.2s;
+      align-self: flex-start;
+      line-height: 1;
+    }
+    .guidelines-close:hover { color: rgba(237,232,223,0.65); }
+
+    /* =====================
+       MODAL GUIDELINES CHIP
+    ===================== */
+    .modal-guidelines {
+      background: rgba(245,200,66,0.05);
+      border: 1px solid rgba(245,200,66,0.14);
+      border-radius: 10px;
+      padding: 11px 13px;
+      margin-bottom: 18px;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+    }
+    .modal-guidelines-icon { font-size: 0.82rem; flex-shrink: 0; margin-top: 2px; }
+    .modal-guidelines-text {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.74rem;
+      color: rgba(237,232,223,0.45);
+      line-height: 1.65;
+      font-weight: 300;
+    }
+    .modal-guidelines-text strong { color: rgba(245,200,66,0.65); font-weight: 500; }
+
+    /* =====================
+       WARNING OVERLAY
+    ===================== */
     #warningOverlay {
       position: fixed;
       inset: 0;
@@ -18,105 +216,129 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      padding: 24px;
-      animation: fadeIn 0.2s ease;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 20px;
+      animation: wFadeIn 0.18s ease;
     }
-
-    #warningOverlay.hidden {
-      display: none;
-    }
+    #warningOverlay.hidden { display: none; }
 
     .warning-box {
-      background: #1a1a2e;
+      background: #1c1714;
       border: 1.5px solid #e86a3a;
-      border-radius: 20px;
-      padding: 36px 32px;
-      max-width: 420px;
+      border-radius: 22px;
+      padding: 32px 24px 26px;
+      max-width: 380px;
       width: 100%;
       text-align: center;
-      box-shadow: 0 0 60px rgba(232, 106, 58, 0.25), 0 20px 60px rgba(0,0,0,0.5);
-      animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 80px rgba(232,106,58,0.18), 0 24px 64px rgba(0,0,0,0.65);
+      animation: wPopIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-
     .warning-emoji {
       font-size: 48px;
-      margin-bottom: 16px;
       display: block;
-      animation: shake 0.5s ease 0.1s;
+      margin-bottom: 14px;
+      animation: wShake 0.55s ease 0.1s both;
     }
-
     .warning-title {
       font-family: 'DM Serif Display', serif;
-      font-size: 22px;
+      font-size: 1.3rem;
       color: #fff;
-      margin: 0 0 12px;
+      margin: 0 0 8px;
     }
-
     .warning-body {
       font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
-      color: rgba(255,255,255,0.7);
-      line-height: 1.6;
-      margin: 0 0 24px;
+      font-size: 0.84rem;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.65;
+      margin: 0 0 18px;
+      font-weight: 300;
     }
+
+    .warning-rules {
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      text-align: left;
+    }
+    .warning-rule {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.76rem;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.5;
+      font-weight: 300;
+    }
+    .warning-rule-icon { flex-shrink: 0; font-size: 0.72rem; margin-top: 2px; }
+    .warning-rule.allowed { color: rgba(107,191,123,0.75); }
 
     #warningMessage {
       font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      color: #e86a3a;
-      background: rgba(232, 106, 58, 0.1);
-      border: 1px solid rgba(232, 106, 58, 0.3);
-      border-radius: 10px;
-      padding: 12px 16px;
-      margin-bottom: 24px;
+      font-size: 0.82rem;
+      color: #f5c842;
+      background: rgba(245,200,66,0.07);
+      border: 1px solid rgba(245,200,66,0.18);
+      border-radius: 9px;
+      padding: 11px 14px;
+      margin-bottom: 18px;
       display: block;
+      line-height: 1.6;
     }
-
     .warning-dismiss {
       background: #e86a3a;
       color: #fff;
       border: none;
-      border-radius: 12px;
-      padding: 12px 32px;
+      border-radius: 11px;
+      padding: 12px 24px;
       font-family: 'DM Sans', sans-serif;
-      font-size: 15px;
+      font-size: 0.9rem;
       font-weight: 500;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.2s;
+      transition: opacity 0.2s, transform 0.15s;
       width: 100%;
     }
+    .warning-dismiss:hover { opacity: 0.87; transform: translateY(-1px); }
+    .warning-dismiss:active { transform: translateY(0); }
 
-    .warning-dismiss:hover {
-      opacity: 0.85;
-      transform: translateY(-1px);
+    .warning-progress {
+      height: 2px;
+      background: rgba(232,106,58,0.18);
+      border-radius: 2px;
+      margin-top: 14px;
+      overflow: hidden;
     }
-
+    .warning-progress-bar {
+      height: 100%;
+      background: #e86a3a;
+      width: 100%;
+      border-radius: 2px;
+    }
     .warning-hint {
       font-family: 'DM Sans', sans-serif;
-      font-size: 12px;
-      color: rgba(255,255,255,0.3);
-      margin-top: 12px;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.18);
+      margin-top: 10px;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
+    @keyframes wFadeIn  { from { opacity: 0; }  to { opacity: 1; } }
+    @keyframes wPopIn   {
+      from { opacity: 0; transform: scale(0.84) translateY(16px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
     }
-
-    @keyframes popIn {
-      from { opacity: 0; transform: scale(0.85); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: rotate(0deg); }
-      20%       { transform: rotate(-12deg); }
-      40%       { transform: rotate(12deg); }
-      60%       { transform: rotate(-8deg); }
-      80%       { transform: rotate(8deg); }
+    @keyframes wShake {
+      0%,100% { transform: rotate(0); }
+      15% { transform: rotate(-14deg); }
+      30% { transform: rotate(14deg); }
+      45% { transform: rotate(-9deg); }
+      60% { transform: rotate(9deg); }
+      78% { transform: rotate(-4deg); }
     }
   </style>
 </head>
@@ -134,7 +356,7 @@
     <div class="header-inner">
       <a class="logo" href="about.html">
         <span class="logo-mark">✦</span>
-        <span class="logo-text">Confessions</span>
+        <span class="logo-text">KU Confessions</span>
       </a>
       <div class="logo-hint" aria-hidden="true">
         <span class="logo-hint-arrow">←</span>
@@ -152,7 +374,16 @@
   </header>
 
   <div class="loading-notice" role="note">
-    💡 If confessions aren't loading, press any sorting filter and they'll appear — sorry for the inconvenience!
+    💡 If confessions aren't loading, press any sorting filter and they'll appear!
+  </div>
+
+  <!-- COMMUNITY GUIDELINES BANNER -->
+  <div class="guidelines-banner" id="guidelinesBanner">
+    <span class="guidelines-icon">🙏</span>
+    <p class="guidelines-text">
+      <strong>Keep it real, keep it kind.</strong> Share genuine feelings — no shaming or targeting people by name, no slurs, no bullying. This is a safe space for the whole KU community.
+    </p>
+    <button class="guidelines-close" id="guidelinesClose" aria-label="Dismiss">✕</button>
   </div>
 
   <!-- HERO -->
@@ -194,6 +425,13 @@
       <h2 class="modal-title" id="modalTitle">Make a Confession</h2>
       <p class="modal-sub">100% anonymous. No account needed.</p>
 
+      <div class="modal-guidelines">
+        <span class="modal-guidelines-icon">💛</span>
+        <p class="modal-guidelines-text">
+          <strong>Be genuine, not hurtful.</strong> Real feelings welcome. No naming/shaming people, no slurs, no hate speech. Violations are auto-blocked.
+        </p>
+      </div>
+
       <div class="form-group">
         <label class="form-label">Category</label>
         <div class="category-pills">
@@ -228,7 +466,7 @@
   <!-- COMMENT MODAL -->
   <div class="modal-overlay hidden" id="commentModalOverlay">
     <div class="modal comment-modal" role="dialog" aria-modal="true" aria-labelledby="commentModalTitle">
-      
+
       <div class="comment-modal-header">
         <div class="comment-modal-header-left">
           <h2 class="modal-title" id="commentModalTitle">Replies</h2>
@@ -237,7 +475,7 @@
         <button class="modal-close comment-modal-close" id="closeCommentModalBtn" aria-label="Close">✕</button>
       </div>
 
-      <p class="modal-sub" style="margin-bottom:20px;">Anonymous · nobody knows who said what</p>
+      <p class="modal-sub" style="margin-bottom:16px;">Anonymous · nobody knows who said what</p>
 
       <div class="comment-confession-preview" id="commentConfessionPreview"></div>
 
@@ -250,7 +488,7 @@
           <textarea
             id="commentText"
             class="confession-input comment-input"
-            placeholder="Say something…"
+            placeholder="Say something kind…"
             maxlength="300"
             rows="2"
           ></textarea>
@@ -271,22 +509,55 @@
   <div id="warningOverlay" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="warningTitle">
     <div class="warning-box">
       <span class="warning-emoji">🚫</span>
-      <h2 class="warning-title" id="warningTitle">Inappropriate Language</h2>
-      <p class="warning-body">
-        KU Confessions is a safe space for everyone at Kathmandu University. Slurs and offensive Nepali words are not allowed here.
-      </p>
+      <h2 class="warning-title" id="warningTitle">Message Blocked</h2>
+      <p class="warning-body">Your message was caught by our content filter. Here's what isn't allowed:</p>
+
+      <div class="warning-rules">
+        <div class="warning-rule">
+          <span class="warning-rule-icon">✕</span>
+          <span>Nepali slurs — lado, puti, muji, randi, machikne, etc.</span>
+        </div>
+        <div class="warning-rule">
+          <span class="warning-rule-icon">✕</span>
+          <span>Shaming, bullying, or naming real people to hurt them</span>
+        </div>
+        <div class="warning-rule">
+          <span class="warning-rule-icon">✕</span>
+          <span>Hate speech or discriminatory language</span>
+        </div>
+        <div class="warning-rule allowed">
+          <span class="warning-rule-icon">✓</span>
+          <span>Real feelings, honest stories &amp; kind replies are always welcome ✦</span>
+        </div>
+      </div>
+
       <span id="warningMessage"></span>
-      <button class="warning-dismiss" id="warningDismissBtn">Got it, I'll fix it</button>
-      <p class="warning-hint">This will auto-dismiss in a few seconds</p>
+      <button class="warning-dismiss" id="warningDismissBtn">Got it — let me fix it</button>
+      <div class="warning-progress">
+        <div class="warning-progress-bar" id="warningProgressBar"></div>
+      </div>
+      <p class="warning-hint">Auto-dismisses in 5 seconds</p>
     </div>
   </div>
 
   <script type="module" src="app.js"></script>
 
   <script>
-    // Dismiss warning on button click
+    // Guidelines banner — dismiss once per session
+    const banner = document.getElementById("guidelinesBanner");
+    if (sessionStorage.getItem("guidelinesDismissed")) banner.style.display = "none";
+    document.getElementById("guidelinesClose").addEventListener("click", () => {
+      banner.style.display = "none";
+      sessionStorage.setItem("guidelinesDismissed", "1");
+    });
+
+    // Warning overlay dismiss
+    const warningOverlay = document.getElementById("warningOverlay");
     document.getElementById("warningDismissBtn").addEventListener("click", () => {
-      document.getElementById("warningOverlay").classList.add("hidden");
+      warningOverlay.classList.add("hidden");
+    });
+    warningOverlay.addEventListener("click", (e) => {
+      if (e.target === warningOverlay) warningOverlay.classList.add("hidden");
     });
   </script>
 </body>

@@ -1,6 +1,6 @@
 // ==========================================
-//  CONFESSIONS — app.js
-//  Firebase SDK (compat v9 via CDN module)
+//  KU CONFESSIONS — app.js
+//  Firebase SDK v9 via CDN module
 // ==========================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -35,11 +35,14 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// ---- Moderation ----
+// ==========================================
+//  MODERATION
+// ==========================================
+
 const bannedWords = [
-  // Direct Nepali slurs
+  // Nepali slurs — direct
   'lado', 'lādo',
-  'puti', 'puti',
+  'puti', 'pūti',
   'muji', 'mujī',
   'randi', 'randī',
   'machikne', 'māchikne',
@@ -50,116 +53,152 @@ const bannedWords = [
   'chikna', 'chikne',
   'harami',
   'dalla', 'dalal',
-  'beshya',
+  'beshya', 'besya',
   'suwwar', 'suwar',
   'gandu', 'gaandu',
   'laure',
-  'chhakka',
+  'chhakka', 'chakka',
   'jhatu',
   'bakchod', 'bakchodi',
   'chutiya', 'chhutiya',
   'lode', 'lodi',
+  'tharki',
+  'phataha', 'fataaha',
+  'kukur',
 ];
 
-// Also catch common letter substitutions (e.g. 'pu71', 'muj1')
+// Normalize to catch leet-speak: muj1, pu7i, m u j i, etc.
 function normalizeText(text) {
   return text
     .toLowerCase()
-    .replace(/0/g, 'o')
-    .replace(/1/g, 'i')
-    .replace(/3/g, 'e')
-    .replace(/4/g, 'a')
-    .replace(/5/g, 's')
-    .replace(/7/g, 't')
-    .replace(/[@]/g, 'a')
+    .replace(/0/g,  'o')
+    .replace(/1/g,  'i')
+    .replace(/3/g,  'e')
+    .replace(/4/g,  'a')
+    .replace(/5/g,  's')
+    .replace(/7/g,  't')
+    .replace(/@/g,  'a')
     .replace(/\$/g, 's')
-    .replace(/\s+/g, ''); // also catch spaced out words like "m u j i"
+    .replace(/\s+/g, '');    // catches "m u j i"
 }
 
 function containsBannedWord(text) {
   const normalized = normalizeText(text);
-  const lower = text.toLowerCase();
-  return bannedWords.some(word => normalized.includes(word) || lower.includes(word));
+  const lower      = text.toLowerCase();
+  return bannedWords.some(w => normalized.includes(w) || lower.includes(w));
 }
 
+// Rotate through friendly-but-firm messages
+const warningMessages = [
+  "💬 Words carry weight — even anonymously. Please rephrase without the offensive language.",
+  "🙏 Real people from your campus read these. Keep it human and kind.",
+  "✍️ You clearly have something to say — say it without the slur. We're listening.",
+  "💛 This is a safe space. Offensive language breaks that for everyone. Try again.",
+  "🌿 KU Confessions works because people trust it. Help us keep it that way.",
+];
+let warningIndex = 0;
 function getWarningMessage() {
-  const warnings = [
-    "🚫 Whoa there! Keep it respectful — no slurs or offensive language allowed.",
-    "⚠️ Your message contains language that isn't allowed here. Try again with kinder words.",
-    "🙏 This is a safe space. Please remove offensive words before posting.",
-    "❌ Some words in your message aren't allowed. KU Confessions is for real feelings, not hate.",
-    "💛 We all go here — keep it human. Please remove the offensive language.",
-  ];
-  return warnings[Math.floor(Math.random() * warnings.length)];
+  const msg = warningMessages[warningIndex % warningMessages.length];
+  warningIndex++;
+  return msg;
 }
 
-// ---- One-time cleanup: delete confessions mentioning Anjila ----
+// Show the warning overlay with animated progress bar
+function showWarning() {
+  const overlay  = document.getElementById("warningOverlay");
+  const msgEl    = document.getElementById("warningMessage");
+  const barEl    = document.getElementById("warningProgressBar");
+
+  if (msgEl) msgEl.textContent = getWarningMessage();
+  if (!overlay) return;
+
+  overlay.classList.remove("hidden");
+
+  // Reset + animate progress bar over 5 s
+  if (barEl) {
+    barEl.style.transition = "none";
+    barEl.style.width = "100%";
+    // Force reflow then animate
+    void barEl.offsetWidth;
+    barEl.style.transition = "width 5s linear";
+    barEl.style.width = "0%";
+  }
+
+  // Auto-dismiss after 5 s
+  clearTimeout(overlay._timer);
+  overlay._timer = setTimeout(() => overlay.classList.add("hidden"), 5000);
+}
+
+// ==========================================
+//  ONE-TIME CLEANUP: delete Anjila mentions
+//  Remove the deleteAnjilaMentions() call
+//  below once you've confirmed it ran.
+// ==========================================
 async function deleteAnjilaMentions() {
   try {
     const snapshot = await getDocs(collection(db, "confessions"));
-    const deletePromises = [];
-
+    const toDelete = [];
     snapshot.forEach((d) => {
       const data = d.data();
       if (data.text && data.text.toLowerCase().includes('anjila')) {
-        deletePromises.push(deleteDoc(doc(db, "confessions", d.id)));
-        console.log("Deleting confession mentioning Anjila:", d.id);
+        toDelete.push(deleteDoc(doc(db, "confessions", d.id)));
+        console.log("🗑 Deleting:", d.id);
       }
     });
-
-    await Promise.all(deletePromises);
-    if (deletePromises.length > 0) {
-      console.log(`Cleanup done! Deleted ${deletePromises.length} confession(s) mentioning Anjila.`);
-    } else {
-      console.log("No confessions mentioning Anjila found.");
-    }
+    await Promise.all(toDelete);
+    console.log(toDelete.length
+      ? `✅ Cleanup done — deleted ${toDelete.length} confession(s).`
+      : "✅ No Anjila mentions found.");
   } catch (err) {
     console.error("Cleanup failed:", err);
   }
 }
-
-// Run cleanup once on load — remove this line after it has run successfully
+// ⚠️ Remove the line below after it has run once successfully:
 deleteAnjilaMentions();
 
-// ---- State ----
+// ==========================================
+//  STATE
+// ==========================================
 let allConfessions = [];
 let activeCategory = "all";
-let activeSort = "newest";
-let likedSet = new Set(JSON.parse(localStorage.getItem("confess_liked") || "[]"));
+let activeSort     = "newest";
+let likedSet       = new Set(JSON.parse(localStorage.getItem("confess_liked") || "[]"));
 
-// currently open confession for comments
-let activeConfessionId = null;
+let activeConfessionId   = null;
 let activeConfessionText = null;
-let commentUnsubscribe = null;
+let commentUnsubscribe   = null;
 
-// ---- DOM Refs ----
-const feed = document.getElementById("feed");
+// ==========================================
+//  DOM REFS
+// ==========================================
+const feed          = document.getElementById("feed");
 const skeletonLoader = document.getElementById("skeletonLoader");
-const emptyState = document.getElementById("emptyState");
-const modalOverlay = document.getElementById("modalOverlay");
-const openModalBtn = document.getElementById("openModalBtn");
+const emptyState    = document.getElementById("emptyState");
+const modalOverlay  = document.getElementById("modalOverlay");
+const openModalBtn  = document.getElementById("openModalBtn");
 const closeModalBtn = document.getElementById("closeModalBtn");
-const submitBtn = document.getElementById("submitBtn");
-const submitLabel = document.getElementById("submitLabel");
+const submitBtn     = document.getElementById("submitBtn");
+const submitLabel   = document.getElementById("submitLabel");
 const confessionText = document.getElementById("confessionText");
-const charCount = document.getElementById("charCount");
-const statCount = document.getElementById("statCount");
-const toastEl = document.getElementById("toast");
-const navTabs = document.querySelectorAll(".nav-tab");
-const sortBtns = document.querySelectorAll(".sort-btn");
+const charCount     = document.getElementById("charCount");
+const statCount     = document.getElementById("statCount");
+const toastEl       = document.getElementById("toast");
+const navTabs       = document.querySelectorAll(".nav-tab");
+const sortBtns      = document.querySelectorAll(".sort-btn");
 const categoryPills = document.querySelectorAll(".pill");
 
-// Comment modal DOM
-const commentModalOverlay = document.getElementById("commentModalOverlay");
-const closeCommentModalBtn = document.getElementById("closeCommentModalBtn");
+const commentModalOverlay     = document.getElementById("commentModalOverlay");
+const closeCommentModalBtn    = document.getElementById("closeCommentModalBtn");
 const commentConfessionPreview = document.getElementById("commentConfessionPreview");
-const commentsList = document.getElementById("commentsList");
-const commentText = document.getElementById("commentText");
-const commentCharCount = document.getElementById("commentCharCount");
-const commentSubmitBtn = document.getElementById("commentSubmitBtn");
-const commentModalReplyCount = document.getElementById("commentModalReplyCount");
+const commentsList            = document.getElementById("commentsList");
+const commentText             = document.getElementById("commentText");
+const commentCharCount        = document.getElementById("commentCharCount");
+const commentSubmitBtn        = document.getElementById("commentSubmitBtn");
+const commentModalReplyCount  = document.getElementById("commentModalReplyCount");
 
-// ---- Category meta ----
+// ==========================================
+//  CATEGORY META
+// ==========================================
 const catMeta = {
   love:  { label: "💛 Love",  color: "#f5c842" },
   life:  { label: "🌿 Life",  color: "#6abf7b" },
@@ -167,13 +206,14 @@ const catMeta = {
   other: { label: "🌀 Other", color: "#7c6af5" },
 };
 
-// ---- Helpers ----
+// ==========================================
+//  HELPERS
+// ==========================================
 function timeAgo(ts) {
   if (!ts) return "just now";
-  const now = Date.now();
-  const sec = Math.floor((now - ts.toMillis()) / 1000);
-  if (sec < 60) return "just now";
-  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  const sec = Math.floor((Date.now() - ts.toMillis()) / 1000);
+  if (sec < 60)    return "just now";
+  if (sec < 3600)  return `${Math.floor(sec / 60)}m ago`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
   return `${Math.floor(sec / 86400)}d ago`;
 }
@@ -185,38 +225,28 @@ function showToast(msg, duration = 2500) {
   toastEl._timer = setTimeout(() => toastEl.classList.add("hidden"), duration);
 }
 
-function showWarning() {
-  const overlay = document.getElementById("warningOverlay");
-  const msg = document.getElementById("warningMessage");
-  if (msg) msg.textContent = getWarningMessage();
-  if (overlay) {
-    overlay.classList.remove("hidden");
-    clearTimeout(overlay._timer);
-    overlay._timer = setTimeout(() => overlay.classList.add("hidden"), 4000);
-  }
-}
-
 function saveLiked() {
   localStorage.setItem("confess_liked", JSON.stringify([...likedSet]));
 }
 
 function escapeHtml(str) {
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g,  "&amp;")
+    .replace(/</g,  "&lt;")
+    .replace(/>/g,  "&gt;")
+    .replace(/"/g,  "&quot;")
+    .replace(/'/g,  "&#039;");
 }
 
-// ---- Render Feed ----
+// ==========================================
+//  RENDER FEED
+// ==========================================
 function renderFeed() {
-  document.querySelectorAll(".confession-card").forEach((el) => el.remove());
+  document.querySelectorAll(".confession-card").forEach(el => el.remove());
 
-  let filtered =
-    activeCategory === "all"
-      ? [...allConfessions]
-      : allConfessions.filter((c) => c.category === activeCategory);
+  let filtered = activeCategory === "all"
+    ? [...allConfessions]
+    : allConfessions.filter(c => c.category === activeCategory);
 
   if (activeSort === "top") {
     filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
@@ -224,9 +254,9 @@ function renderFeed() {
     filtered.sort((a, b) => (Number(b.commentCount) || 0) - (Number(a.commentCount) || 0));
   } else {
     filtered.sort((a, b) => {
-      const aTime = a.createdAt ? a.createdAt.toMillis() : 0;
-      const bTime = b.createdAt ? b.createdAt.toMillis() : 0;
-      return bTime - aTime;
+      const aT = a.createdAt ? a.createdAt.toMillis() : 0;
+      const bT = b.createdAt ? b.createdAt.toMillis() : 0;
+      return bT - aT;
     });
   }
 
@@ -238,12 +268,7 @@ function renderFeed() {
   }
   emptyState.classList.add("hidden");
 
-  filtered.forEach((conf, i) => {
-    const card = buildCard(conf, i);
-    feed.appendChild(card);
-  });
-
-  // Update stats
+  filtered.forEach((conf, i) => feed.appendChild(buildCard(conf, i)));
   statCount.textContent = allConfessions.length;
 }
 
@@ -252,15 +277,12 @@ function buildCard(conf, i) {
   card.className = "confession-card";
   card.style.animationDelay = `${i * 0.04}s`;
 
-  const meta = catMeta[conf.category] || catMeta.other;
-  const isLiked = likedSet.has(conf.id);
+  const meta         = catMeta[conf.category] || catMeta.other;
+  const isLiked      = likedSet.has(conf.id);
   const commentCount = parseInt(conf.commentCount, 10) || 0;
-
-  const replyLabel = commentCount === 0
-    ? "Reply"
-    : commentCount === 1
-      ? "1 reply"
-      : `${commentCount} replies`;
+  const replyLabel   = commentCount === 0 ? "Reply"
+    : commentCount === 1 ? "1 reply"
+    : `${commentCount} replies`;
 
   card.innerHTML = `
     <div class="card-category" style="color:${meta.color};background:${meta.color}18">${meta.label}</div>
@@ -285,10 +307,12 @@ function buildCard(conf, i) {
   return card;
 }
 
-// ---- Like ----
+// ==========================================
+//  LIKE
+// ==========================================
 async function handleLike(e) {
   const btn = e.currentTarget;
-  const id = btn.dataset.id;
+  const id  = btn.dataset.id;
 
   if (likedSet.has(id)) {
     showToast("You've already liked this one 💛");
@@ -299,7 +323,6 @@ async function handleLike(e) {
   saveLiked();
   btn.classList.add("liked");
   btn.querySelector(".heart").textContent = "❤️";
-
   const countEl = btn.querySelector(".like-count");
   countEl.textContent = parseInt(countEl.textContent || "0") + 1;
 
@@ -310,14 +333,15 @@ async function handleLike(e) {
   }
 }
 
-// ---- Comments ----
+// ==========================================
+//  COMMENTS
+// ==========================================
 function openCommentModal(e) {
   const btn = e.currentTarget;
-  activeConfessionId = btn.dataset.id;
+  activeConfessionId   = btn.dataset.id;
   activeConfessionText = btn.dataset.text;
 
   commentConfessionPreview.textContent = `"${activeConfessionText}"`;
-
   commentsList.innerHTML = `<div class="comments-loading">Loading replies…</div>`;
   commentText.value = "";
   commentCharCount.textContent = "0";
@@ -332,15 +356,13 @@ function openCommentModal(e) {
   const q = query(commentsRef, orderBy("createdAt", "asc"));
 
   commentUnsubscribe = onSnapshot(q, (snapshot) => {
-    const count = snapshot.size;
-    const countLabel = (n) => n === 0 ? "Reply" : n === 1 ? "1 reply" : `${n} replies`;
+    const count      = snapshot.size;
+    const countLabel = n => n === 0 ? "Reply" : n === 1 ? "1 reply" : `${n} replies`;
 
     if (commentModalReplyCount) {
       commentModalReplyCount.textContent = count === 0
         ? "No replies yet"
-        : count === 1
-          ? "1 reply"
-          : `${count} replies`;
+        : count === 1 ? "1 reply" : `${count} replies`;
     }
 
     const cardBtn = document.querySelector(`.comment-btn[data-id="${activeConfessionId}"]`);
@@ -356,11 +378,12 @@ function openCommentModal(e) {
         <div class="no-comments">
           <div class="no-comments-icon">💬</div>
           <p>No replies yet.</p>
-          <p class="no-comments-sub">Be the first to say something.</p>
+          <p class="no-comments-sub">Be the first to say something kind.</p>
         </div>`;
       return;
     }
-    snapshot.docs.forEach((d) => {
+
+    snapshot.docs.forEach(d => {
       const data = d.data();
       const item = document.createElement("div");
       item.className = "comment-item";
@@ -377,40 +400,22 @@ function openCommentModal(e) {
 function closeCommentModal() {
   commentModalOverlay.classList.add("hidden");
   document.body.style.overflow = "";
-  if (commentUnsubscribe) {
-    commentUnsubscribe();
-    commentUnsubscribe = null;
-  }
+  if (commentUnsubscribe) { commentUnsubscribe(); commentUnsubscribe = null; }
   activeConfessionId = null;
 }
 
 async function handleCommentSubmit() {
   const text = commentText.value.trim();
-  if (!text) {
-    showToast("Write something first ✍️");
-    return;
-  }
+  if (!text) { showToast("Write something first ✍️"); return; }
   if (!activeConfessionId) return;
 
-  // Moderation check
-  if (containsBannedWord(text)) {
-    showWarning();
-    return;
-  }
+  if (containsBannedWord(text)) { showWarning(); return; }
 
   commentSubmitBtn.disabled = true;
-
   try {
     const commentsRef = collection(db, "confessions", activeConfessionId, "comments");
-    await addDoc(commentsRef, {
-      text,
-      createdAt: serverTimestamp(),
-    });
-
-    await updateDoc(doc(db, "confessions", activeConfessionId), {
-      commentCount: increment(1),
-    });
-
+    await addDoc(commentsRef, { text, createdAt: serverTimestamp() });
+    await updateDoc(doc(db, "confessions", activeConfessionId), { commentCount: increment(1) });
     commentText.value = "";
     commentCharCount.textContent = "0";
     showToast("Reply posted anonymously 💬");
@@ -422,35 +427,25 @@ async function handleCommentSubmit() {
   }
 }
 
-// ---- Submit Confession ----
+// ==========================================
+//  SUBMIT CONFESSION
+// ==========================================
 async function handleSubmit() {
   const text = confessionText.value.trim();
-  if (!text) {
-    showToast("Please write something first ✍️");
-    return;
-  }
+  if (!text) { showToast("Please write something first ✍️"); return; }
 
-  // Moderation check
-  if (containsBannedWord(text)) {
-    showWarning();
-    return;
-  }
+  if (containsBannedWord(text)) { showWarning(); return; }
 
   const activePill = document.querySelector(".pill.active");
-  const category = activePill ? activePill.dataset.cat : "other";
+  const category   = activePill ? activePill.dataset.cat : "other";
 
-  submitBtn.disabled = true;
+  submitBtn.disabled    = true;
   submitLabel.textContent = "Posting…";
 
   try {
     await addDoc(collection(db, "confessions"), {
-      text,
-      category,
-      likes: 0,
-      commentCount: 0,
-      createdAt: serverTimestamp(),
+      text, category, likes: 0, commentCount: 0, createdAt: serverTimestamp(),
     });
-
     confessionText.value = "";
     charCount.textContent = "0";
     modalOverlay.classList.add("hidden");
@@ -459,91 +454,77 @@ async function handleSubmit() {
     console.error("Post failed:", err);
     showToast("Something went wrong. Please try again.");
   } finally {
-    submitBtn.disabled = false;
+    submitBtn.disabled      = false;
     submitLabel.textContent = "Post Anonymously";
   }
 }
 
-// ---- Real-time listener ----
+// ==========================================
+//  REAL-TIME LISTENER
+// ==========================================
 function listenToConfessions() {
   const q = query(collection(db, "confessions"), orderBy("createdAt", "desc"));
   onSnapshot(q, (snapshot) => {
-    allConfessions = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    allConfessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     renderFeed();
   });
 }
 
-// ---- Event Listeners ----
+// ==========================================
+//  EVENT LISTENERS
+// ==========================================
 
-// Nav tabs
-navTabs.forEach((tab) => {
+navTabs.forEach(tab => {
   tab.addEventListener("click", () => {
-    navTabs.forEach((t) => t.classList.remove("active"));
+    navTabs.forEach(t => t.classList.remove("active"));
     tab.classList.add("active");
     activeCategory = tab.dataset.tab;
     renderFeed();
   });
 });
 
-// Sort
-sortBtns.forEach((btn) => {
+sortBtns.forEach(btn => {
   btn.addEventListener("click", () => {
-    sortBtns.forEach((b) => b.classList.remove("active"));
+    sortBtns.forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     activeSort = btn.dataset.sort;
     renderFeed();
   });
 });
 
-// Category pills in confession modal
-categoryPills.forEach((pill) => {
+categoryPills.forEach(pill => {
   pill.addEventListener("click", () => {
-    categoryPills.forEach((p) => p.classList.remove("active"));
+    categoryPills.forEach(p => p.classList.remove("active"));
     pill.classList.add("active");
   });
 });
 
-// Char counters
-confessionText.addEventListener("input", () => {
-  charCount.textContent = confessionText.value.length;
-});
-commentText.addEventListener("input", () => {
-  commentCharCount.textContent = commentText.value.length;
-});
+confessionText.addEventListener("input", () => { charCount.textContent = confessionText.value.length; });
+commentText.addEventListener("input",    () => { commentCharCount.textContent = commentText.value.length; });
 
-// Confession modal
 openModalBtn.addEventListener("click", () => {
   modalOverlay.classList.remove("hidden");
   confessionText.focus();
 });
 closeModalBtn.addEventListener("click", () => modalOverlay.classList.add("hidden"));
-modalOverlay.addEventListener("click", (e) => {
-  if (e.target === modalOverlay) modalOverlay.classList.add("hidden");
-});
+modalOverlay.addEventListener("click", e => { if (e.target === modalOverlay) modalOverlay.classList.add("hidden"); });
 
-// Comment modal
 closeCommentModalBtn.addEventListener("click", closeCommentModal);
-commentModalOverlay.addEventListener("click", (e) => {
-  if (e.target === commentModalOverlay) closeCommentModal();
-});
+commentModalOverlay.addEventListener("click", e => { if (e.target === commentModalOverlay) closeCommentModal(); });
 commentSubmitBtn.addEventListener("click", handleCommentSubmit);
-commentText.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.metaKey) handleCommentSubmit();
-});
+commentText.addEventListener("keydown", e => { if (e.key === "Enter" && e.metaKey) handleCommentSubmit(); });
 
-// Escape key closes whichever modal is open
-document.addEventListener("keydown", (e) => {
+document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     modalOverlay.classList.add("hidden");
     closeCommentModal();
   }
 });
 
-// Submit confession
 submitBtn.addEventListener("click", handleSubmit);
-confessionText.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.metaKey) handleSubmit();
-});
+confessionText.addEventListener("keydown", e => { if (e.key === "Enter" && e.metaKey) handleSubmit(); });
 
-// ---- Boot ----
+// ==========================================
+//  BOOT
+// ==========================================
 listenToConfessions();
