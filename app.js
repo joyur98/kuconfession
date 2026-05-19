@@ -36,18 +36,49 @@ const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
 // ==========================================
+//  OWNERSHIP TOKENS
+//  When a user posts, we generate a random token,
+//  store it on the Firestore document AND in
+//  localStorage. If the tokens match, they own it
+//  and see a delete button — no login needed.
+// ==========================================
+
+const OWNED_KEY = "confess_owned"; // localStorage key → { [docId]: token }
+
+function loadOwned() {
+  try { return JSON.parse(localStorage.getItem(OWNED_KEY) || "{}"); }
+  catch { return {}; }
+}
+function saveOwned(owned) {
+  localStorage.setItem(OWNED_KEY, JSON.stringify(owned));
+}
+function generateToken() {
+  return (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+function registerOwnership(docId, token) {
+  const owned = loadOwned();
+  owned[docId] = token;
+  saveOwned(owned);
+}
+function isOwned(docId, firestoreToken) {
+  if (!firestoreToken) return false;
+  return loadOwned()[docId] === firestoreToken;
+}
+
+// ==========================================
 //  MODERATION
 // ==========================================
 
 const bannedWords = [
-  // Nepali slurs — direct
-  'lado', 'lādo',
-  'puti', 'pūti',
-  'muji', 'mujī',
-  'randi', 'randī',
-  'machikne', 'māchikne',
-  'myachikne', 'myāchikne',
-  'bhalu', 'valu', 'bhālu',
+  'lado', 'lado',
+  'puti', 'puti',
+  'muji', 'muji',
+  'randi', 'randi',
+  'machikne', 'machikne',
+  'myachikne', 'myachikne',
+  'bhalu', 'valu', 'bhalu',
   'kutta', 'kutti',
   'haramkhor', 'haramkor',
   'chikna', 'chikne',
@@ -67,42 +98,25 @@ const bannedWords = [
   'kukur',
 ];
 
-/**
- * Normalize text to catch:
- *  - leet-speak:       muj1, pu7i
- *  - spaced letters:   m u j i
- *  - repeated letters: puuuttttiii → puti, mmuujjii → muji
- *  - mixed:            p.u.t.i, p_u_t_i
- */
 function normalizeText(text) {
   return text
     .toLowerCase()
-    // leet substitutions
-    .replace(/0/g,  'o')
-    .replace(/1/g,  'i')
-    .replace(/3/g,  'e')
-    .replace(/4/g,  'a')
-    .replace(/5/g,  's')
-    .replace(/7/g,  't')
-    .replace(/@/g,  'a')
-    .replace(/\$/g, 's')
-    // strip non-alpha (spaces, dots, underscores, dashes, etc.)
+    .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
+    .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't')
+    .replace(/@/g, 'a').replace(/\$/g, 's')
     .replace(/[^a-z]/g, '')
-    // collapse runs of the same letter: "puuuttiii" → "puti"
     .replace(/(.)\1+/g, '$1');
 }
 
 function containsBannedWord(text) {
   const normalized = normalizeText(text);
-  const lower      = text.toLowerCase().replace(/(.)\1+/gi, '$1'); // also de-dupe on raw
+  const lower = text.toLowerCase().replace(/(.)\1+/gi, '$1');
   return bannedWords.some(w => {
-    // normalize the banned word itself the same way so comparisons are consistent
     const nw = normalizeText(w);
     return normalized.includes(nw) || lower.includes(w);
   });
 }
 
-// Rotate through friendly-but-firm messages
 const warningMessages = [
   "💬 Words carry weight — even anonymously. Please rephrase without the offensive language.",
   "🙏 Real people from your campus read these. Keep it human and kind.",
@@ -112,23 +126,16 @@ const warningMessages = [
 ];
 let warningIndex = 0;
 function getWarningMessage() {
-  const msg = warningMessages[warningIndex % warningMessages.length];
-  warningIndex++;
-  return msg;
+  return warningMessages[(warningIndex++) % warningMessages.length];
 }
 
-// Show the warning overlay with animated progress bar
 function showWarning() {
-  const overlay  = document.getElementById("warningOverlay");
-  const msgEl    = document.getElementById("warningMessage");
-  const barEl    = document.getElementById("warningProgressBar");
-
+  const overlay = document.getElementById("warningOverlay");
+  const msgEl   = document.getElementById("warningMessage");
+  const barEl   = document.getElementById("warningProgressBar");
   if (msgEl) msgEl.textContent = getWarningMessage();
   if (!overlay) return;
-
   overlay.classList.remove("hidden");
-
-  // Reset + animate progress bar over 5 s
   if (barEl) {
     barEl.style.transition = "none";
     barEl.style.width = "100%";
@@ -136,88 +143,50 @@ function showWarning() {
     barEl.style.transition = "width 5s linear";
     barEl.style.width = "0%";
   }
-
   clearTimeout(overlay._timer);
   overlay._timer = setTimeout(() => overlay.classList.add("hidden"), 5000);
 }
 
 // ==========================================
 //  HISTORICAL CLEANUP
-//  Deletes confessions (and their comments)
-//  that contain any banned word, including
-//  stretched variants like "puuuttttiii".
-//  Also cleans up stray comment sub-collections.
 // ==========================================
 async function cleanupBannedContent() {
-  console.log("🧹 Starting banned-content cleanup…");
+  console.log("Cleaning up banned content...");
   try {
     const snapshot = await getDocs(collection(db, "confessions"));
     const deletionPromises = [];
 
     for (const confDoc of snapshot.docs) {
-      const data = confDoc.data();
-      const textToCheck = data.text || "";
+      const textToCheck = confDoc.data().text || "";
 
       if (containsBannedWord(textToCheck)) {
-        console.log(`🗑 Deleting confession ${confDoc.id}:`, textToCheck.slice(0, 60));
-
-        // Delete all comments in the sub-collection first
         try {
-          const commentsSnap = await getDocs(
-            collection(db, "confessions", confDoc.id, "comments")
+          const commentsSnap = await getDocs(collection(db, "confessions", confDoc.id, "comments"));
+          commentsSnap.docs.forEach(cd =>
+            deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id, "comments", cd.id)))
           );
-          commentsSnap.docs.forEach(commentDoc => {
-            deletionPromises.push(
-              deleteDoc(doc(db, "confessions", confDoc.id, "comments", commentDoc.id))
-            );
-          });
-        } catch (e) {
-          // sub-collection may not exist — that's fine
-        }
-
-        // Delete the confession itself
+        } catch (_) {}
         deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id)));
-        continue; // no need to check comments if the whole confession is gone
+        continue;
       }
 
-      // Confession text is clean — but check its comments too
       try {
-        const commentsSnap = await getDocs(
-          collection(db, "confessions", confDoc.id, "comments")
-        );
+        const commentsSnap = await getDocs(collection(db, "confessions", confDoc.id, "comments"));
         for (const commentDoc of commentsSnap.docs) {
-          const cData = commentDoc.data();
-          if (containsBannedWord(cData.text || "")) {
-            console.log(`🗑 Deleting comment ${commentDoc.id} on ${confDoc.id}`);
-            deletionPromises.push(
-              deleteDoc(doc(db, "confessions", confDoc.id, "comments", commentDoc.id))
-            );
-            // Decrement the parent's commentCount
-            deletionPromises.push(
-              updateDoc(doc(db, "confessions", confDoc.id), { commentCount: increment(-1) })
-            );
+          if (containsBannedWord(commentDoc.data().text || "")) {
+            deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id, "comments", commentDoc.id)));
+            deletionPromises.push(updateDoc(doc(db, "confessions", confDoc.id), { commentCount: increment(-1) }));
           }
         }
-      } catch (e) {
-        // sub-collection may not exist
-      }
+      } catch (_) {}
     }
 
     await Promise.all(deletionPromises);
-    const deleted = deletionPromises.length;
-    if (deleted > 0) {
-      console.log(`✅ Cleanup done — ${deleted} document(s) removed.`);
-    } else {
-      console.log("✅ Cleanup done — nothing to remove.");
-    }
+    console.log(`Cleanup done — ${deletionPromises.length} document(s) removed.`);
   } catch (err) {
-    console.error("❌ Cleanup failed:", err);
+    console.error("Cleanup failed:", err);
   }
 }
-
-// Run cleanup on every page load (safe to leave permanently —
-// it only deletes documents that match the banned list).
-cleanupBannedContent();
 
 // ==========================================
 //  STATE
@@ -282,6 +251,7 @@ function timeAgo(ts) {
 }
 
 function showToast(msg, duration = 2500) {
+  toastEl.innerHTML = "";
   toastEl.textContent = msg;
   toastEl.classList.remove("hidden");
   clearTimeout(toastEl._timer);
@@ -294,11 +264,34 @@ function saveLiked() {
 
 function escapeHtml(str) {
   return str
-    .replace(/&/g,  "&amp;")
-    .replace(/</g,  "&lt;")
-    .replace(/>/g,  "&gt;")
-    .replace(/"/g,  "&quot;")
-    .replace(/'/g,  "&#039;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// ==========================================
+//  INLINE CONFIRM (uses toast bar)
+// ==========================================
+function confirmDelete(label, onConfirm) {
+  toastEl.innerHTML = `
+    <span style="flex:1">${label}</span>
+    <button id="toastConfirmYes" style="margin-left:10px;background:#e86a3a;border:none;color:#fff;border-radius:7px;padding:4px 14px;cursor:pointer;font-size:0.8rem;font-family:inherit;font-weight:500">Delete</button>
+    <button id="toastConfirmNo"  style="margin-left:6px;background:rgba(255,255,255,0.14);border:none;color:#fff;border-radius:7px;padding:4px 14px;cursor:pointer;font-size:0.8rem;font-family:inherit">Cancel</button>
+  `;
+  toastEl.style.display = "flex";
+  toastEl.style.alignItems = "center";
+  toastEl.classList.remove("hidden");
+  clearTimeout(toastEl._timer);
+
+  const cleanup = () => {
+    toastEl.classList.add("hidden");
+    toastEl.innerHTML = "";
+    toastEl.style.display = "";
+    toastEl.style.alignItems = "";
+  };
+
+  document.getElementById("toastConfirmYes").addEventListener("click", () => { cleanup(); onConfirm(); });
+  document.getElementById("toastConfirmNo").addEventListener("click", cleanup);
+  toastEl._timer = setTimeout(cleanup, 7000);
 }
 
 // ==========================================
@@ -307,9 +300,12 @@ function escapeHtml(str) {
 function renderFeed() {
   document.querySelectorAll(".confession-card").forEach(el => el.remove());
 
+  // Safety net: never render confessions containing banned words
+  const clean = allConfessions.filter(c => !containsBannedWord(c.text || ""));
+
   let filtered = activeCategory === "all"
-    ? [...allConfessions]
-    : allConfessions.filter(c => c.category === activeCategory);
+    ? [...clean]
+    : clean.filter(c => c.category === activeCategory);
 
   if (activeSort === "top") {
     filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
@@ -332,7 +328,7 @@ function renderFeed() {
   emptyState.classList.add("hidden");
 
   filtered.forEach((conf, i) => feed.appendChild(buildCard(conf, i)));
-  statCount.textContent = allConfessions.length;
+  statCount.textContent = clean.length;
 }
 
 function buildCard(conf, i) {
@@ -346,6 +342,7 @@ function buildCard(conf, i) {
   const replyLabel   = commentCount === 0 ? "Reply"
     : commentCount === 1 ? "1 reply"
     : `${commentCount} replies`;
+  const owned        = isOwned(conf.id, conf.ownerToken);
 
   card.innerHTML = `
     <div class="card-category" style="color:${meta.color};background:${meta.color}18">${meta.label}</div>
@@ -361,13 +358,41 @@ function buildCard(conf, i) {
           <span class="comment-icon">💬</span>
           <span class="comment-label">${replyLabel}</span>
         </button>
+        ${owned ? `<button class="delete-confession-btn" title="Delete my confession" aria-label="Delete confession">🗑</button>` : ""}
       </div>
     </div>
   `;
 
   card.querySelector(".like-btn").addEventListener("click", handleLike);
   card.querySelector(".comment-btn").addEventListener("click", openCommentModal);
+  if (owned) {
+    card.querySelector(".delete-confession-btn").addEventListener("click", () =>
+      handleDeleteConfession(conf.id)
+    );
+  }
   return card;
+}
+
+// ==========================================
+//  DELETE CONFESSION
+// ==========================================
+async function handleDeleteConfession(id) {
+  confirmDelete("Delete your confession? This can't be undone.", async () => {
+    try {
+      const commentsSnap = await getDocs(collection(db, "confessions", id, "comments"));
+      await Promise.all(commentsSnap.docs.map(cd =>
+        deleteDoc(doc(db, "confessions", id, "comments", cd.id))
+      ));
+      await deleteDoc(doc(db, "confessions", id));
+      const owned = loadOwned();
+      delete owned[id];
+      saveOwned(owned);
+      showToast("Your confession was deleted.");
+    } catch (err) {
+      console.error("Delete confession failed:", err);
+      showToast("Couldn't delete — try again.");
+    }
+  });
 }
 
 // ==========================================
@@ -447,13 +472,26 @@ function openCommentModal(e) {
     }
 
     snapshot.docs.forEach(d => {
-      const data = d.data();
+      const data       = d.data();
+      const commentId  = d.id;
+      // Composite key avoids collisions between confession IDs and comment IDs
+      const commentKey = `${activeConfessionId}__${commentId}`;
+      const ownedCmt   = isOwned(commentKey, data.ownerToken);
+
       const item = document.createElement("div");
       item.className = "comment-item";
       item.innerHTML = `
-        <p class="comment-item-text">${escapeHtml(data.text || "")}</p>
+        <div class="comment-item-body">
+          <p class="comment-item-text">${escapeHtml(data.text || "")}</p>
+          ${ownedCmt ? `<button class="delete-comment-btn" title="Delete my reply" aria-label="Delete reply">🗑</button>` : ""}
+        </div>
         <p class="comment-item-time">${timeAgo(data.createdAt)}</p>
       `;
+      if (ownedCmt) {
+        item.querySelector(".delete-comment-btn").addEventListener("click", () =>
+          handleDeleteComment(activeConfessionId, commentId, commentKey)
+        );
+      }
       commentsList.appendChild(item);
     });
     commentsList.scrollTop = commentsList.scrollHeight;
@@ -467,17 +505,41 @@ function closeCommentModal() {
   activeConfessionId = null;
 }
 
+// ==========================================
+//  DELETE COMMENT
+// ==========================================
+async function handleDeleteComment(confessionId, commentId, commentKey) {
+  confirmDelete("Delete your reply? This can't be undone.", async () => {
+    try {
+      await deleteDoc(doc(db, "confessions", confessionId, "comments", commentId));
+      await updateDoc(doc(db, "confessions", confessionId), { commentCount: increment(-1) });
+      const owned = loadOwned();
+      delete owned[commentKey];
+      saveOwned(owned);
+      showToast("Reply deleted.");
+    } catch (err) {
+      console.error("Delete comment failed:", err);
+      showToast("Couldn't delete — try again.");
+    }
+  });
+}
+
 async function handleCommentSubmit() {
   const text = commentText.value.trim();
   if (!text) { showToast("Write something first ✍️"); return; }
   if (!activeConfessionId) return;
-
   if (containsBannedWord(text)) { showWarning(); return; }
 
   commentSubmitBtn.disabled = true;
   try {
+    const token       = generateToken();
     const commentsRef = collection(db, "confessions", activeConfessionId, "comments");
-    await addDoc(commentsRef, { text, createdAt: serverTimestamp() });
+    const newDoc      = await addDoc(commentsRef, {
+      text,
+      ownerToken: token,
+      createdAt: serverTimestamp(),
+    });
+    registerOwnership(`${activeConfessionId}__${newDoc.id}`, token);
     await updateDoc(doc(db, "confessions", activeConfessionId), { commentCount: increment(1) });
     commentText.value = "";
     commentCharCount.textContent = "0";
@@ -496,7 +558,6 @@ async function handleCommentSubmit() {
 async function handleSubmit() {
   const text = confessionText.value.trim();
   if (!text) { showToast("Please write something first ✍️"); return; }
-
   if (containsBannedWord(text)) { showWarning(); return; }
 
   const activePill = document.querySelector(".pill.active");
@@ -506,9 +567,16 @@ async function handleSubmit() {
   submitLabel.textContent = "Posting…";
 
   try {
-    await addDoc(collection(db, "confessions"), {
-      text, category, likes: 0, commentCount: 0, createdAt: serverTimestamp(),
+    const token  = generateToken();
+    const newDoc = await addDoc(collection(db, "confessions"), {
+      text,
+      category,
+      likes: 0,
+      commentCount: 0,
+      ownerToken: token,
+      createdAt: serverTimestamp(),
     });
+    registerOwnership(newDoc.id, token);
     confessionText.value = "";
     charCount.textContent = "0";
     modalOverlay.classList.add("hidden");
@@ -588,6 +656,9 @@ submitBtn.addEventListener("click", handleSubmit);
 confessionText.addEventListener("keydown", e => { if (e.key === "Enter" && e.metaKey) handleSubmit(); });
 
 // ==========================================
-//  BOOT
+//  BOOT — cleanup first, then listen
 // ==========================================
-listenToConfessions();
+(async () => {
+  await cleanupBannedContent();
+  listenToConfessions();
+})();

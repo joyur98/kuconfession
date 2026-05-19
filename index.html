@@ -117,7 +117,6 @@
       .comment-modal { max-height: 90vh !important; }
       .modal-title { font-size: 1.2rem !important; }
       .modal-sub { font-size: 0.8rem !important; }
-      /* Prevents iOS zoom on textarea focus */
       .confession-input { font-size: 16px !important; }
       .submit-btn { font-size: 0.88rem !important; padding: 13px 18px !important; }
       .category-pills { gap: 6px !important; flex-wrap: wrap !important; }
@@ -152,7 +151,6 @@
       margin: 12px auto;
       position: relative;
       z-index: 1;
-      /* horizontal margin handled below */
       margin-left: 24px;
       margin-right: 24px;
     }
@@ -255,7 +253,6 @@
       margin: 0 0 18px;
       font-weight: 300;
     }
-
     .warning-rules {
       background: rgba(255,255,255,0.04);
       border-radius: 12px;
@@ -340,6 +337,153 @@
       60% { transform: rotate(9deg); }
       78% { transform: rotate(-4deg); }
     }
+
+    /* =====================
+       WELCOME / DISCLAIMER GATE
+    ===================== */
+    #welcomeGate {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 20px;
+      animation: wFadeIn 0.22s ease;
+    }
+    #welcomeGate.hidden { display: none; }
+
+    .welcome-box {
+      background: #1a1612;
+      border: 1.5px solid rgba(245, 200, 66, 0.28);
+      border-radius: 24px;
+      padding: 36px 28px 28px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 100px rgba(245,200,66,0.08), 0 32px 80px rgba(0,0,0,0.7);
+      animation: wPopIn 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @media (max-width: 640px) {
+      #welcomeGate { align-items: flex-end; padding: 0; }
+      .welcome-box {
+        border-radius: 24px 24px 0 0;
+        padding: 28px 20px 36px;
+        max-width: 100%;
+      }
+    }
+
+    .welcome-logo {
+      font-size: 2.2rem;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .welcome-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.45rem;
+      color: #fff;
+      margin: 0 0 6px;
+      line-height: 1.2;
+    }
+    .welcome-sub {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      color: rgba(237,232,223,0.42);
+      margin: 0 0 22px;
+      font-weight: 300;
+    }
+
+    .welcome-rules {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 16px 15px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      text-align: left;
+    }
+    .welcome-rule {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.79rem;
+      color: rgba(237,232,223,0.62);
+      line-height: 1.55;
+      font-weight: 300;
+    }
+    .welcome-rule-icon {
+      flex-shrink: 0;
+      font-size: 0.85rem;
+      margin-top: 1px;
+    }
+    .welcome-rule strong {
+      color: rgba(237,232,223,0.9);
+      font-weight: 500;
+    }
+    .welcome-rule.warn {
+      color: rgba(245,200,66,0.75);
+    }
+    .welcome-rule.warn strong {
+      color: #f5c842;
+    }
+    .welcome-rule.danger {
+      color: rgba(232,106,58,0.8);
+    }
+    .welcome-rule.danger strong {
+      color: #e86a3a;
+    }
+
+    .welcome-disclaimer {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.74rem;
+      color: rgba(237,232,223,0.3);
+      line-height: 1.6;
+      margin-bottom: 20px;
+      padding: 12px 14px;
+      background: rgba(232,106,58,0.05);
+      border: 1px solid rgba(232,106,58,0.14);
+      border-radius: 10px;
+      text-align: left;
+    }
+    .welcome-disclaimer strong {
+      color: rgba(232,106,58,0.75);
+      font-weight: 500;
+    }
+
+    .welcome-accept-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #f5c842 0%, #e8a020 100%);
+      color: #1a1612;
+      border: none;
+      border-radius: 13px;
+      padding: 14px 24px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      letter-spacing: 0.01em;
+      box-shadow: 0 4px 20px rgba(245,200,66,0.22);
+    }
+    .welcome-accept-btn:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(245,200,66,0.32);
+    }
+    .welcome-accept-btn:active { transform: translateY(0); }
+
+    .welcome-footer {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem;
+      color: rgba(237,232,223,0.18);
+      margin-top: 14px;
+    }
   </style>
 </head>
 <body>
@@ -349,6 +493,53 @@
     <div class="blob blob-2"></div>
     <div class="blob blob-3"></div>
     <div class="grain"></div>
+  </div>
+
+  <!-- =====================
+       WELCOME / DISCLAIMER GATE
+       Blocks all interaction until accepted.
+  ===================== -->
+  <div id="welcomeGate" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+    <div class="welcome-box">
+
+      <span class="welcome-logo">✦</span>
+      <h1 class="welcome-title" id="welcomeTitle">KU Confessions</h1>
+      <p class="welcome-sub">Anonymous · Safe · Unfiltered</p>
+
+      <div class="welcome-rules">
+
+        <div class="welcome-rule warn">
+          <span class="welcome-rule-icon">⚠️</span>
+          <span><strong>Don't refresh after confessing.</strong> Your delete access is stored in this browser. Refreshing or switching devices means you won't be able to delete your confession later.</span>
+        </div>
+
+        <div class="welcome-rule">
+          <span class="welcome-rule-icon">🔒</span>
+          <span><strong>100% anonymous.</strong> No account, no name, no tracking. Nobody can trace a confession back to you.</span>
+        </div>
+
+        <div class="welcome-rule">
+          <span class="welcome-rule-icon">💛</span>
+          <span><strong>Be kind.</strong> No slurs, no bullying, no naming people to harm them. Violations are auto-blocked.</span>
+        </div>
+
+        <div class="welcome-rule danger">
+          <span class="welcome-rule-icon">🚫</span>
+          <span><strong>You are solely responsible</strong> for what you post. The site owner takes no responsibility for the content of any confession.</span>
+        </div>
+
+      </div>
+
+      <p class="welcome-disclaimer">
+        <strong>Note:</strong> By pressing Accept, you acknowledge that this is an anonymous platform and that any content you submit is your own responsibility. Do not post anything illegal, harmful, or targeted at real individuals.
+      </p>
+
+      <button class="welcome-accept-btn" id="welcomeAcceptBtn">
+        I understand — Let me in ✦
+      </button>
+
+      <p class="welcome-footer">Shown once per session</p>
+    </div>
   </div>
 
   <!-- HEADER -->
@@ -543,7 +734,26 @@
   <script type="module" src="app.js"></script>
 
   <script>
-    // Guidelines banner — dismiss once per session
+    // ---- WELCOME GATE ----
+    // Shows once per browser session. Pressing Accept stores the flag
+    // and hides the gate. Without accepting, the gate stays on top of
+    // everything (z-index 99999) so nothing behind it is reachable.
+    const welcomeGate    = document.getElementById("welcomeGate");
+    const welcomeAccept  = document.getElementById("welcomeAcceptBtn");
+
+    if (sessionStorage.getItem("kuconfess_accepted")) {
+      welcomeGate.classList.add("hidden");
+    }
+
+    welcomeAccept.addEventListener("click", () => {
+      welcomeGate.classList.add("hidden");
+      sessionStorage.setItem("kuconfess_accepted", "1");
+    });
+
+    // Prevent closing by clicking the backdrop — must press the button
+    welcomeGate.addEventListener("click", e => e.stopPropagation());
+
+    // ---- GUIDELINES BANNER ----
     const banner = document.getElementById("guidelinesBanner");
     if (sessionStorage.getItem("guidelinesDismissed")) banner.style.display = "none";
     document.getElementById("guidelinesClose").addEventListener("click", () => {
@@ -551,7 +761,7 @@
       sessionStorage.setItem("guidelinesDismissed", "1");
     });
 
-    // Warning overlay dismiss
+    // ---- WARNING OVERLAY DISMISS ----
     const warningOverlay = document.getElementById("warningOverlay");
     document.getElementById("warningDismissBtn").addEventListener("click", () => {
       warningOverlay.classList.add("hidden");

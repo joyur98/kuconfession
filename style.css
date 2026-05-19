@@ -685,3 +685,49 @@ body {
   text-align: center;
   line-height: 1.5;
 }
+.delete-confession-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 5px 8px;
+  border-radius: 8px;
+  opacity: 0.35;
+  transition: opacity 0.2s, background 0.2s;
+  line-height: 1;
+}
+.delete-confession-btn:hover {
+  opacity: 0.85;
+  background: rgba(232, 106, 58, 0.12);
+}
+ 
+/* --- Comment item layout (text + delete side by side) --- */
+.comment-item-body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.comment-item-body .comment-item-text {
+  flex: 1;
+  margin: 0;
+}
+ 
+/* --- Delete button on comments --- */
+.delete-comment-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 3px 6px;
+  border-radius: 6px;
+  opacity: 0.3;
+  transition: opacity 0.2s, background 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 1px;
+}
+.delete-comment-btn:hover {
+  opacity: 0.85;
+  background: rgba(232, 106, 58, 0.12);
+}
