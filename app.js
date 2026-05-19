@@ -43,7 +43,7 @@ const db = getFirestore(app);
 //  and see a delete button — no login needed.
 // ==========================================
 
-const OWNED_KEY = "confess_owned"; // localStorage key → { [docId]: token }
+const OWNED_KEY = "confess_owned";
 
 function loadOwned() {
   try { return JSON.parse(localStorage.getItem(OWNED_KEY) || "{}"); }
@@ -69,33 +69,18 @@ function isOwned(docId, firestoreToken) {
 
 // ==========================================
 //  MODERATION
+//  Only runs on NEW submissions — no historical
+//  cleanup so the feed never reloads on its own.
 // ==========================================
 
 const bannedWords = [
-  'lado', 'lado',
-  'puti', 'puti',
-  'muji', 'muji',
-  'randi', 'randi',
-  'machikne', 'machikne',
-  'myachikne', 'myachikne',
-  'bhalu', 'valu', 'bhalu',
-  'kutta', 'kutti',
-  'haramkhor', 'haramkor',
-  'chikna', 'chikne',
-  'harami',
-  'dalla', 'dalal',
-  'beshya', 'besya',
-  'suwwar', 'suwar',
-  'gandu', 'gaandu',
-  'laure',
-  'chhakka', 'chakka',
-  'jhatu',
-  'bakchod', 'bakchodi',
-  'chutiya', 'chhutiya',
-  'lode', 'lodi',
-  'tharki',
-  'phataha', 'fataaha',
-  'kukur',
+  'lado', 'puti', 'muji', 'randi', 'machikne', 'myachikne',
+  'bhalu', 'valu', 'kutta', 'kutti', 'haramkhor', 'haramkor',
+  'chikna', 'chikne', 'harami', 'dalla', 'dalal', 'beshya',
+  'besya', 'suwwar', 'suwar', 'gandu', 'gaandu', 'laure',
+  'chhakka', 'chakka', 'jhatu', 'bakchod', 'bakchodi',
+  'chutiya', 'chhutiya', 'lode', 'lodi', 'tharki',
+  'phataha', 'fataaha', 'kukur',
 ];
 
 function normalizeText(text) {
@@ -145,47 +130,6 @@ function showWarning() {
   }
   clearTimeout(overlay._timer);
   overlay._timer = setTimeout(() => overlay.classList.add("hidden"), 5000);
-}
-
-// ==========================================
-//  HISTORICAL CLEANUP
-// ==========================================
-async function cleanupBannedContent() {
-  console.log("Cleaning up banned content...");
-  try {
-    const snapshot = await getDocs(collection(db, "confessions"));
-    const deletionPromises = [];
-
-    for (const confDoc of snapshot.docs) {
-      const textToCheck = confDoc.data().text || "";
-
-      if (containsBannedWord(textToCheck)) {
-        try {
-          const commentsSnap = await getDocs(collection(db, "confessions", confDoc.id, "comments"));
-          commentsSnap.docs.forEach(cd =>
-            deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id, "comments", cd.id)))
-          );
-        } catch (_) {}
-        deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id)));
-        continue;
-      }
-
-      try {
-        const commentsSnap = await getDocs(collection(db, "confessions", confDoc.id, "comments"));
-        for (const commentDoc of commentsSnap.docs) {
-          if (containsBannedWord(commentDoc.data().text || "")) {
-            deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id, "comments", commentDoc.id)));
-            deletionPromises.push(updateDoc(doc(db, "confessions", confDoc.id), { commentCount: increment(-1) }));
-          }
-        }
-      } catch (_) {}
-    }
-
-    await Promise.all(deletionPromises);
-    console.log(`Cleanup done — ${deletionPromises.length} document(s) removed.`);
-  } catch (err) {
-    console.error("Cleanup failed:", err);
-  }
 }
 
 // ==========================================
@@ -300,12 +244,9 @@ function confirmDelete(label, onConfirm) {
 function renderFeed() {
   document.querySelectorAll(".confession-card").forEach(el => el.remove());
 
-  // Safety net: never render confessions containing banned words
-  const clean = allConfessions.filter(c => !containsBannedWord(c.text || ""));
-
   let filtered = activeCategory === "all"
-    ? [...clean]
-    : clean.filter(c => c.category === activeCategory);
+    ? [...allConfessions]
+    : allConfessions.filter(c => c.category === activeCategory);
 
   if (activeSort === "top") {
     filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
@@ -328,7 +269,7 @@ function renderFeed() {
   emptyState.classList.add("hidden");
 
   filtered.forEach((conf, i) => feed.appendChild(buildCard(conf, i)));
-  statCount.textContent = clean.length;
+  statCount.textContent = allConfessions.length;
 }
 
 function buildCard(conf, i) {
@@ -474,7 +415,6 @@ function openCommentModal(e) {
     snapshot.docs.forEach(d => {
       const data       = d.data();
       const commentId  = d.id;
-      // Composite key avoids collisions between confession IDs and comment IDs
       const commentKey = `${activeConfessionId}__${commentId}`;
       const ownedCmt   = isOwned(commentKey, data.ownerToken);
 
@@ -668,9 +608,5 @@ confessionText.addEventListener("keydown", e => { if (e.key === "Enter" && e.met
 
 // ==========================================
 //  BOOT
-//  Start the listener immediately so the feed
-//  always loads. Cleanup runs in the background
-//  so any Firestore error there never blocks it.
 // ==========================================
 listenToConfessions();
-cleanupBannedContent().catch(err => console.error("Background cleanup error:", err));
