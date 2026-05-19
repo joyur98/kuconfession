@@ -67,10 +67,17 @@ const bannedWords = [
   'kukur',
 ];
 
-// Normalize to catch leet-speak: muj1, pu7i, m u j i, etc.
+/**
+ * Normalize text to catch:
+ *  - leet-speak:       muj1, pu7i
+ *  - spaced letters:   m u j i
+ *  - repeated letters: puuuttttiii → puti, mmuujjii → muji
+ *  - mixed:            p.u.t.i, p_u_t_i
+ */
 function normalizeText(text) {
   return text
     .toLowerCase()
+    // leet substitutions
     .replace(/0/g,  'o')
     .replace(/1/g,  'i')
     .replace(/3/g,  'e')
@@ -79,13 +86,20 @@ function normalizeText(text) {
     .replace(/7/g,  't')
     .replace(/@/g,  'a')
     .replace(/\$/g, 's')
-    .replace(/\s+/g, '');    // catches "m u j i"
+    // strip non-alpha (spaces, dots, underscores, dashes, etc.)
+    .replace(/[^a-z]/g, '')
+    // collapse runs of the same letter: "puuuttiii" → "puti"
+    .replace(/(.)\1+/g, '$1');
 }
 
 function containsBannedWord(text) {
   const normalized = normalizeText(text);
-  const lower      = text.toLowerCase();
-  return bannedWords.some(w => normalized.includes(w) || lower.includes(w));
+  const lower      = text.toLowerCase().replace(/(.)\1+/gi, '$1'); // also de-dupe on raw
+  return bannedWords.some(w => {
+    // normalize the banned word itself the same way so comparisons are consistent
+    const nw = normalizeText(w);
+    return normalized.includes(nw) || lower.includes(w);
+  });
 }
 
 // Rotate through friendly-but-firm messages
@@ -118,43 +132,92 @@ function showWarning() {
   if (barEl) {
     barEl.style.transition = "none";
     barEl.style.width = "100%";
-    // Force reflow then animate
     void barEl.offsetWidth;
     barEl.style.transition = "width 5s linear";
     barEl.style.width = "0%";
   }
 
-  // Auto-dismiss after 5 s
   clearTimeout(overlay._timer);
   overlay._timer = setTimeout(() => overlay.classList.add("hidden"), 5000);
 }
 
 // ==========================================
-//  ONE-TIME CLEANUP: delete Anjila mentions
-//  Remove the deleteAnjilaMentions() call
-//  below once you've confirmed it ran.
+//  HISTORICAL CLEANUP
+//  Deletes confessions (and their comments)
+//  that contain any banned word, including
+//  stretched variants like "puuuttttiii".
+//  Also cleans up stray comment sub-collections.
 // ==========================================
-async function deleteAnjilaMentions() {
+async function cleanupBannedContent() {
+  console.log("🧹 Starting banned-content cleanup…");
   try {
     const snapshot = await getDocs(collection(db, "confessions"));
-    const toDelete = [];
-    snapshot.forEach((d) => {
-      const data = d.data();
-      if (data.text && data.text.toLowerCase().includes('anjila')) {
-        toDelete.push(deleteDoc(doc(db, "confessions", d.id)));
-        console.log("🗑 Deleting:", d.id);
+    const deletionPromises = [];
+
+    for (const confDoc of snapshot.docs) {
+      const data = confDoc.data();
+      const textToCheck = data.text || "";
+
+      if (containsBannedWord(textToCheck)) {
+        console.log(`🗑 Deleting confession ${confDoc.id}:`, textToCheck.slice(0, 60));
+
+        // Delete all comments in the sub-collection first
+        try {
+          const commentsSnap = await getDocs(
+            collection(db, "confessions", confDoc.id, "comments")
+          );
+          commentsSnap.docs.forEach(commentDoc => {
+            deletionPromises.push(
+              deleteDoc(doc(db, "confessions", confDoc.id, "comments", commentDoc.id))
+            );
+          });
+        } catch (e) {
+          // sub-collection may not exist — that's fine
+        }
+
+        // Delete the confession itself
+        deletionPromises.push(deleteDoc(doc(db, "confessions", confDoc.id)));
+        continue; // no need to check comments if the whole confession is gone
       }
-    });
-    await Promise.all(toDelete);
-    console.log(toDelete.length
-      ? `✅ Cleanup done — deleted ${toDelete.length} confession(s).`
-      : "✅ No Anjila mentions found.");
+
+      // Confession text is clean — but check its comments too
+      try {
+        const commentsSnap = await getDocs(
+          collection(db, "confessions", confDoc.id, "comments")
+        );
+        for (const commentDoc of commentsSnap.docs) {
+          const cData = commentDoc.data();
+          if (containsBannedWord(cData.text || "")) {
+            console.log(`🗑 Deleting comment ${commentDoc.id} on ${confDoc.id}`);
+            deletionPromises.push(
+              deleteDoc(doc(db, "confessions", confDoc.id, "comments", commentDoc.id))
+            );
+            // Decrement the parent's commentCount
+            deletionPromises.push(
+              updateDoc(doc(db, "confessions", confDoc.id), { commentCount: increment(-1) })
+            );
+          }
+        }
+      } catch (e) {
+        // sub-collection may not exist
+      }
+    }
+
+    await Promise.all(deletionPromises);
+    const deleted = deletionPromises.length;
+    if (deleted > 0) {
+      console.log(`✅ Cleanup done — ${deleted} document(s) removed.`);
+    } else {
+      console.log("✅ Cleanup done — nothing to remove.");
+    }
   } catch (err) {
-    console.error("Cleanup failed:", err);
+    console.error("❌ Cleanup failed:", err);
   }
 }
-// ⚠️ Remove the line below after it has run once successfully:
-deleteAnjilaMentions();
+
+// Run cleanup on every page load (safe to leave permanently —
+// it only deletes documents that match the banned list).
+cleanupBannedContent();
 
 // ==========================================
 //  STATE
@@ -171,30 +234,30 @@ let commentUnsubscribe   = null;
 // ==========================================
 //  DOM REFS
 // ==========================================
-const feed          = document.getElementById("feed");
+const feed           = document.getElementById("feed");
 const skeletonLoader = document.getElementById("skeletonLoader");
-const emptyState    = document.getElementById("emptyState");
-const modalOverlay  = document.getElementById("modalOverlay");
-const openModalBtn  = document.getElementById("openModalBtn");
-const closeModalBtn = document.getElementById("closeModalBtn");
-const submitBtn     = document.getElementById("submitBtn");
-const submitLabel   = document.getElementById("submitLabel");
+const emptyState     = document.getElementById("emptyState");
+const modalOverlay   = document.getElementById("modalOverlay");
+const openModalBtn   = document.getElementById("openModalBtn");
+const closeModalBtn  = document.getElementById("closeModalBtn");
+const submitBtn      = document.getElementById("submitBtn");
+const submitLabel    = document.getElementById("submitLabel");
 const confessionText = document.getElementById("confessionText");
-const charCount     = document.getElementById("charCount");
-const statCount     = document.getElementById("statCount");
-const toastEl       = document.getElementById("toast");
-const navTabs       = document.querySelectorAll(".nav-tab");
-const sortBtns      = document.querySelectorAll(".sort-btn");
-const categoryPills = document.querySelectorAll(".pill");
+const charCount      = document.getElementById("charCount");
+const statCount      = document.getElementById("statCount");
+const toastEl        = document.getElementById("toast");
+const navTabs        = document.querySelectorAll(".nav-tab");
+const sortBtns       = document.querySelectorAll(".sort-btn");
+const categoryPills  = document.querySelectorAll(".pill");
 
-const commentModalOverlay     = document.getElementById("commentModalOverlay");
-const closeCommentModalBtn    = document.getElementById("closeCommentModalBtn");
+const commentModalOverlay      = document.getElementById("commentModalOverlay");
+const closeCommentModalBtn     = document.getElementById("closeCommentModalBtn");
 const commentConfessionPreview = document.getElementById("commentConfessionPreview");
-const commentsList            = document.getElementById("commentsList");
-const commentText             = document.getElementById("commentText");
-const commentCharCount        = document.getElementById("commentCharCount");
-const commentSubmitBtn        = document.getElementById("commentSubmitBtn");
-const commentModalReplyCount  = document.getElementById("commentModalReplyCount");
+const commentsList             = document.getElementById("commentsList");
+const commentText              = document.getElementById("commentText");
+const commentCharCount         = document.getElementById("commentCharCount");
+const commentSubmitBtn         = document.getElementById("commentSubmitBtn");
+const commentModalReplyCount   = document.getElementById("commentModalReplyCount");
 
 // ==========================================
 //  CATEGORY META
@@ -439,7 +502,7 @@ async function handleSubmit() {
   const activePill = document.querySelector(".pill.active");
   const category   = activePill ? activePill.dataset.cat : "other";
 
-  submitBtn.disabled    = true;
+  submitBtn.disabled      = true;
   submitLabel.textContent = "Posting…";
 
   try {
